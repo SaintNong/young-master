@@ -4,7 +4,7 @@
 #include "bitboards.h"
 
 #define NAME "Empyrean"
-#define VERSION "v0.1"
+#define VERSION "v0.11"
 #define AUTHOR "Ning XZ"
 
 #define INPUT_BUFFER_SIZE 2048

@@ -74,9 +74,9 @@ Move stringToMove(char *string, Board *board) {
 // Simple time management function to determine how long to search
 int calculateTimeToThink(int timeLeft, int increment, int movesToGo) {
     if (movesToGo < 0) {
-        movesToGo = 30;
+        movesToGo = 40;
     }
-    return (timeLeft / movesToGo) + (increment / 2);
+    return (timeLeft / (movesToGo * 1.5)) + (increment / 2);
 }
 
 /* -------------------------------------------------------------------------- */

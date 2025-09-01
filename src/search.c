@@ -41,7 +41,7 @@ static int quiesce(Engine *engine, int alpha, int beta) {
     Board *board = &engine->board;
 
     // Periodically check time up, or user ended search
-    if ((engine->searchStats.nodes & 0xFFF) == 0) {
+    if ((engine->searchStats.nodes & 0xFF) == 0) {
         checkSearchOver(engine);
     }
     
@@ -95,22 +95,19 @@ static int quiesce(Engine *engine, int alpha, int beta) {
 
 // Negamax, with alpha beta pruning
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply) {
-    if (engine->searchState == SEARCH_STOPPED) return 0;
-    Board *board = &engine->board;
-
-    // Periodically check time up, or user ended search
-    if ((engine->searchStats.nodes & 0xFFF) == 0) {
-        checkSearchOver(engine);
-    }
-
-    
     // Leaf node - drop to quiescence search
     if (depth <= 0) {
         return quiesce(engine, alpha, beta);
     }
 
-    // Begin searching this node
+    if (engine->searchState == SEARCH_STOPPED) return 0;
+    Board *board = &engine->board;
     engine->searchStats.nodes++;
+
+    // Periodically check time up, or user ended search
+    if ((engine->searchStats.nodes & 0xFF) == 0) {
+        checkSearchOver(engine);
+    }
 
     PV childPV;
     childPV.length = 0;
