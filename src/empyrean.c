@@ -4,6 +4,8 @@
 #include "uci.h"
 #include "bitboards.h"
 #include "magicmoves.h"
+#include "movepicker.h"
+#include "zobrist.h"
 
 #include "board.h"
 #include "move.h"
@@ -24,6 +26,8 @@ void initialise() {
     initAttackMasks();
     
     // Search
+    initMvvLva();
+    initZobristKeys();
 }
 
 int main(void) {

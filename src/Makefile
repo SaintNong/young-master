@@ -11,15 +11,15 @@ default:
 
 # no optimizations
 noflags:
-	gcc $(SRC) $(LIBS) -o $(EXE)
+	gcc $(SRC) $(LIBS) -o ../$(EXE)
 
 # compiles with asserts
 debug:
-	gcc $(SRC) $(FLAGS) $(LIBS) -o $(EXE)
+	gcc $(SRC) $(FLAGS) $(LIBS) -o ../$(EXE)
 
 # fastest compile
 performance:
-	gcc $(SRC) $(FLAGS) $(LIBS) $(NO_DEBUG) -o $(EXE)
+	gcc $(SRC) $(FLAGS) $(LIBS) $(NO_DEBUG) -o ../$(EXE)
 
 # compiles with a version name for sprt testing
 sprt:
@@ -34,7 +34,7 @@ sprt:
 # compiles and runs
 run:
 	make performance
-	./$(EXE)
+	../$(EXE)
 
 clean:
-	rm $(EXE)
+	rm ../$(EXE)

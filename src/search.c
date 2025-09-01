@@ -8,6 +8,7 @@
 #include "makemove.h"
 #include "eval.h"
 #include "move.h"
+#include "movepicker.h"
 #include "uci.h"
 #include "utils.h"
 
@@ -60,12 +61,11 @@ static int quiesce(Engine *engine, int alpha, int beta) {
     if (standPat > alpha)
         alpha = standPat;
     
-    // Generate all capture moves
-    MoveList moves;
-    generatePseudoLegalMoves(&moves, board);
-    
-    for (int i = 0; i < moves.count; i++) {
-        Move move = moves.list[i];
+    MovePicker picker;
+    initMovePicker(&picker, board);
+
+    Move move;
+    while ((move = pickMove(&picker, board)) != NO_MOVE) {
 
         // Skip non noisy moves
         if (!IsCapture(move)) continue;
@@ -109,6 +109,13 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         checkSearchOver(engine);
     }
 
+    if (ply != 0) {
+        if (isDraw(board)) {
+            pv->length = 0;
+            return 0;
+        }
+    }
+
     PV childPV;
     childPV.length = 0;
     
@@ -116,11 +123,11 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     int bestScore = -INFINITY;
     int movesPlayed = 0;
 
-    MoveList moves;
-    generatePseudoLegalMoves(&moves, board);
+    MovePicker picker;
+    initMovePicker(&picker, board);
 
-    for (int i = 0; i < moves.count; i++) {
-        Move move = moves.list[i];
+    Move move;
+    while ((move = pickMove(&picker, board)) != NO_MOVE) {
         
         // Skip illegal moves
         if (makeMove(board, move) == 0) {
