@@ -4,7 +4,7 @@
 #include "bitboards.h"
 
 #define NAME "Empyrean"
-#define VERSION "v0.2"
+#define VERSION "v0.3"
 #define AUTHOR "Ning XZ"
 
 #define INPUT_BUFFER_SIZE 2048
@@ -42,6 +42,7 @@ typedef struct {
     int nodes;                // Number of nodes searched
     int fh;                   // Number of fail highs
     int fhf;                  // Number of fail high first
+    int searchStartTime;      // Time when the search started
 } SearchInfo;
 
 // The entire state of the engine

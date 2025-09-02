@@ -6,6 +6,7 @@
 #include "magicmoves.h"
 #include "movepicker.h"
 #include "zobrist.h"
+#include "hashtable.h"
 
 #include "board.h"
 #include "move.h"
@@ -28,6 +29,7 @@ void initialise() {
     // Search
     initMvvLva();
     initZobristKeys();
+    initHashTable(128);
 }
 
 int main(void) {

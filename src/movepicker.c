@@ -18,10 +18,15 @@ void initMvvLva() {
 }
 
 // Initialize the move picker
-void initMovePicker(MovePicker *picker, Board *board) {
-    picker->stage = STAGE_GENERATE;
+void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
+    if (hashMove != NO_MOVE)
+        picker->stage = STAGE_HASH_MOVE;
+    else
+        picker->stage = STAGE_GENERATE;
+
     picker->moveList.count = 0;
     picker->currentIndex = 0;
+    picker->hashMove = hashMove;
     
     // Initialize all move scores to 0
     for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
@@ -44,8 +49,11 @@ Move pickMove(MovePicker *picker, Board *board) {
     switch (picker->stage) {
         case STAGE_HASH_MOVE:
             picker->stage = STAGE_GENERATE;
+            if (picker->hashMove != NO_MOVE) {
+                return picker->hashMove;
+            }
+
             // Fall through to generate stage
-        
         case STAGE_GENERATE:
             // Generate all moves
             generateLegalMoves(&picker->moveList, board);
@@ -60,31 +68,37 @@ Move pickMove(MovePicker *picker, Board *board) {
 
         case STAGE_MAIN:
             if (picker->currentIndex < picker->moveList.count) {
-            int bestIndex = picker->currentIndex;
-            for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
-                if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
-                    bestIndex = i;
+                // Find the best move remaining
+                int bestIndex = picker->currentIndex;
+                for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
+                    if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
+                        bestIndex = i;
+                    }
                 }
+
+                // Swap best move with currentIndex
+                if (bestIndex != picker->currentIndex) {
+                    int tmpScore = picker->moveScores[picker->currentIndex];
+                    picker->moveScores[picker->currentIndex] = picker->moveScores[bestIndex];
+                    picker->moveScores[bestIndex] = tmpScore;
+
+                    Move tmpMove = picker->moveList.list[picker->currentIndex];
+                    picker->moveList.list[picker->currentIndex] = picker->moveList.list[bestIndex];
+                    picker->moveList.list[bestIndex] = tmpMove;
+                }
+
+                // Don't return the hash move again
+                if (picker->moveList.list[picker->currentIndex] == picker->hashMove) {
+                    picker->currentIndex++;
+                    return pickMove(picker, board);
+                }
+
+                // Return next best move
+                return picker->moveList.list[picker->currentIndex++];
+            } else {
+                picker->stage = STAGE_DONE;
+                return NO_MOVE;
             }
-
-            // Swap best move with currentIndex
-            if (bestIndex != picker->currentIndex) {
-                int tmpScore = picker->moveScores[picker->currentIndex];
-                picker->moveScores[picker->currentIndex] = picker->moveScores[bestIndex];
-                picker->moveScores[bestIndex] = tmpScore;
-
-                Move tmpMove = picker->moveList.list[picker->currentIndex];
-                picker->moveList.list[picker->currentIndex] = picker->moveList.list[bestIndex];
-                picker->moveList.list[bestIndex] = tmpMove;
-            }
-
-            // Return next best move
-            return picker->moveList.list[picker->currentIndex++];
-        } else {
-            picker->stage = STAGE_DONE;
-            return NO_MOVE;
-        }
-
         
         case STAGE_DONE:
             return NO_MOVE;

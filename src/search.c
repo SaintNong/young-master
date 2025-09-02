@@ -9,6 +9,7 @@
 #include "eval.h"
 #include "move.h"
 #include "movepicker.h"
+#include "hashtable.h"
 #include "uci.h"
 #include "utils.h"
 
@@ -45,6 +46,11 @@ static int quiesce(Engine *engine, int alpha, int beta) {
     if ((engine->searchStats.nodes & 0xFF) == 0) {
         checkSearchOver(engine);
     }
+
+    // Check for draw
+    if (isDraw(board)) {
+        return 0;
+    }
     
     /*
      * During quiescence, since captures are not "forced", we have the choice to
@@ -62,7 +68,7 @@ static int quiesce(Engine *engine, int alpha, int beta) {
         alpha = standPat;
     
     MovePicker picker;
-    initMovePicker(&picker, board);
+    initMovePicker(&picker, board, NO_MOVE);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
@@ -95,36 +101,62 @@ static int quiesce(Engine *engine, int alpha, int beta) {
 
 // Negamax, with alpha beta pruning
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply) {
+    Board *board = &engine->board;
+
+    const int rootNode = (ply == 0);
+    const int pvNode = (alpha != beta - 1);
+
     // Leaf node - drop to quiescence search
     if (depth <= 0) {
         return quiesce(engine, alpha, beta);
     }
 
-    if (engine->searchState == SEARCH_STOPPED) return 0;
-    Board *board = &engine->board;
+    // Update nodes searched for UCI reporting
     engine->searchStats.nodes++;
+
+    // Return if search was stopped
+    if (engine->searchState == SEARCH_STOPPED) return 0;
+
+    // Probe hash table
+    Move hashMove = NO_MOVE;
+    int hashDepth, hashScore, hashFlag;
+    if (!rootNode) {
+        if (hashTableProbe(board->hash, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+            if (hashDepth >= depth && !pvNode) {
+                if (hashFlag == BOUND_EXACT ||
+                    (hashFlag == BOUND_LOWER && hashScore >= beta) ||
+                    (hashFlag == BOUND_UPPER && hashScore <= alpha)) {
+                    return hashScore;
+                }
+            }
+        }
+    }
 
     // Periodically check time up, or user ended search
     if ((engine->searchStats.nodes & 0xFF) == 0) {
         checkSearchOver(engine);
     }
 
-    if (ply != 0) {
+    // Check for draws before searching
+    if (!rootNode) {
         if (isDraw(board)) {
             pv->length = 0;
             return 0;
         }
     }
 
+    // Begin searching all the moves in the position
     PV childPV;
     childPV.length = 0;
     
-    // Begin searching all moves in the position
     int bestScore = -INFINITY;
     int movesPlayed = 0;
 
+    Move bestMove = NO_MOVE;
+    int hashBound = BOUND_UPPER; // Assume upper bound until we find better move
+
     MovePicker picker;
-    initMovePicker(&picker, board);
+    initMovePicker(&picker, board, hashMove);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
@@ -136,7 +168,26 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
         movesPlayed++;
         
-        int score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
+        /**
+         * Principal variation search (PVS), we search the first move with a full
+         * window, assuming that the subsequent moves are worse. The other moves
+         * can be searched with the faster null window, and if they fail high, we
+         * re-search them with a full window.
+         * https://www.chessprogramming.org/Principal_Variation_Search
+         */
+        int score;
+        if (movesPlayed == 1) {
+            // Full window search for the first move
+            score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
+        } else {
+            // Null window search for other moves
+            score = -search(engine, &childPV, -alpha - 1, -alpha, depth - 1, ply + 1);
+
+            // If it fails high, we need to re-search with a full window
+            if (score > alpha && score < beta) {
+                score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
+            }
+        }
         undoMove(board, move);
 
         // Check if search was stopped
@@ -145,19 +196,25 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         // New best move found
         if (score > bestScore) {
             bestScore = score;
+            bestMove = move;
             
             // Update alpha if beaten
             if (score > alpha) {
                 alpha = score;
+                hashBound = BOUND_EXACT;
 
-                // Update PV (Bruce Moreland's method)
-                pv->length = 1 + childPV.length;
-                pv->moves[0] = move;
-                memcpy(pv->moves + 1, childPV.moves, sizeof(uint16_t) * childPV.length);
+                if (pvNode) {
+                    // Update PV (Bruce Moreland's method)
+                    pv->length = 1 + childPV.length;
+                    pv->moves[0] = move;
+                    memcpy(pv->moves + 1, childPV.moves, sizeof(uint16_t) * childPV.length);
+                }
 
                 // Fail high cut-off
                 // The move was too good, the opponent will avoid it!
                 if (alpha >= beta) {
+                    hashBound = BOUND_LOWER;
+
                     if (movesPlayed == 1) {
                         engine->searchStats.fhf++;
                     }
@@ -183,6 +240,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         else
             return 0;
     }
+
+
+    // Store the results of this search in the hash table
+    hashTableStore(board->hash, bestMove, depth, bestScore, hashBound);
     
     return bestScore;
 }
@@ -206,6 +267,10 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
 
     // Print nodes searched
     printf("nodes %d ", engine->searchStats.nodes);
+
+    // Print time taken
+    int timeTaken = getTime() - engine->searchStats.searchStartTime;
+    printf("time %d ", timeTaken);
 
     // Print PV
     printf("pv ");
@@ -249,6 +314,7 @@ void initSearch(Engine *engine) {
     engine->searchStats.nodes = 0;
     engine->searchStats.fh = 0;
     engine->searchStats.fhf = 0;
+    engine->searchStats.searchStartTime = getTime();
 
     // Set engine state
     engine->searchState = SEARCHING;

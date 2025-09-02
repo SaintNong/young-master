@@ -10,6 +10,7 @@
 #include "bench.h"
 #include "eval.h"
 #include "search.h"
+#include "hashtable.h"
 
 /* -------------------------------------------------------------------------- */
 /*                                 UCI helpers                                */
@@ -215,6 +216,9 @@ void handleGo(Engine *engine, char *input) {
     Move bestMove = iterativeDeepening(engine);
 
     printf("bestmove %s\n", moveToString(bestMove));
+    
+    // Print search statistics
+    printf("Hash table occupied: %.2f%%\n", occupiedHashEntries());
 }
 
 // Clean up before exiting

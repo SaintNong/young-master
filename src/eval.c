@@ -7,6 +7,10 @@
 
 // Evaluation of the current board state, from the side to move's POV
 int evaluate(Board *board) {
+    if (isDraw(board)) {
+        return 0;
+    }
+
     int score = 0;
 
     // Go through all the pieces
