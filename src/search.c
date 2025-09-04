@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "search.h"
 #include "board.h"
@@ -13,10 +14,33 @@
 #include "uci.h"
 #include "utils.h"
 
+// Late move reduction table.
+// int reduction = LMR_TABLE[depth][movesPlayed];
+int LMR_TABLE[MAX_DEPTH][MAX_LEGAL_MOVES];
+
+// Initialises the Late Move Reduction Table
+void initLMRTable() {
+    for (int depth = 1; depth < 64; depth++) {
+        for (int movesPlayed = 1; movesPlayed < 64; movesPlayed++) {
+            // Eyeballed
+            int reduction = 0.10 + log(depth) * log(movesPlayed) / 4.0;
+            if (reduction < 0)
+                reduction = 0;
+                
+            LMR_TABLE[depth][movesPlayed] = reduction;
+
+            // if (depth <= 14 && movesPlayed <= 35)
+            //     printf("D: %d Move: %d R: %d\n", depth, movesPlayed, reduction);
+        }
+    }
+}
+
+
 // Check if search is over, or user typed stop
 // TODO: handle user stop
 static int checkSearchOver(Engine *engine) {
     SearchLimits *limits = &engine->limits;
+
     if (limits->searchType == LIMIT_INFINITE) {
         return false;
     }
@@ -36,77 +60,94 @@ static int checkSearchOver(Engine *engine) {
     return false;
 }
 
-// Searches until there are no more captures
+// Searches until the position is non tactical to get a more accurate evaluation.
 static int quiesce(Engine *engine, int alpha, int beta) {
-    if (engine->searchState == SEARCH_STOPPED) return 0;
     engine->searchStats.nodes++;
     Board *board = &engine->board;
 
-    // Periodically check time up, or user ended search
-    if ((engine->searchStats.nodes & 0xFF) == 0) {
+    // Search stopping/time management:
+    // Periodically check if the search should be stopped.
+    if ((engine->searchStats.nodes & 0x3FF) == 0) {
         checkSearchOver(engine);
     }
 
-    // Check for draw
+    // Return up the tree if the search was stopped.
+    if (engine->searchState == SEARCH_STOPPED) return 0;
+
+    // Check if this node is a draw before searching further.
     if (isDraw(board)) {
         return 0;
     }
     
     /*
-     * During quiescence, since captures are not "forced", we have the choice to
-     * not move at all, accepting our current evaluation. This is the "stand pat"
+     * During quiescence, we are not "forced" to move, i.e. we have the choice to
+     * not move at all, accepting the current evaluation. This is the "stand pat"
      * score (taken from poker).
      */
     int standPat = evaluate(board);
     
-    // Beta cutoff, this position is too good and will be avoided by our enemy.
+    // Evaluation pruning. If the evaluation already beats beta, we can stop now.
     if (standPat >= beta)
         return beta;
-    
-    // Our worst possible score is the current evaluation.
+
+    // Our lower bound for score is at minimum the current evaluation.
     if (standPat > alpha)
         alpha = standPat;
     
+    
+    // Begin searching this node.
+    int bestScore = standPat;
     MovePicker picker;
     initMovePicker(&picker, board, NO_MOVE);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
-
-        // Skip non noisy moves
+        // Skip non noisy moves.
         if (!IsCapture(move)) continue;
         
-        // Skip illegal moves
+        // Skip illegal moves.
         if (makeMove(board, move) == 0) {
             undoMove(board, move);
             continue;
         }
         
+        // Search the next layer.
         int score = -quiesce(engine, -beta, -alpha);
         undoMove(board, move);
 
+        // If the search is stopped we want to return as soon as possible.
         if (engine->searchState == SEARCH_STOPPED) return 0;
-        
-        // Beta cutoff
-        if (score >= beta)
-            return beta;
-        
-        // Alpha update
-        if (score > alpha)
-            alpha = score;
+
+        // Score beat our best score.
+        if (score > bestScore) {
+            bestScore = score;
+            
+            // Update alpha if beaten.
+            if (score > alpha) {
+                alpha = score;
+            }
+
+            // Move was too good, and will be avoided by the opponent.
+            if (alpha >= beta)
+                break;
+        }
     }
     
     return alpha;
 }
 
-// Negamax, with alpha beta pruning
+// Principal variation search, with fail-soft alpha beta.
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply) {
     Board *board = &engine->board;
+    PV childPV;
 
     const int rootNode = (ply == 0);
     const int pvNode = (alpha != beta - 1);
 
-    // Leaf node - drop to quiescence search
+    /**
+     * When we reach the edge of our search depth, we drop to quiescent search
+     * to get a more accurate evaluation with no hanging pieces or tactics.
+     */
     if (depth <= 0) {
         return quiesce(engine, alpha, beta);
     }
@@ -114,15 +155,36 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     // Update nodes searched for UCI reporting
     engine->searchStats.nodes++;
 
-    // Return if search was stopped
-    if (engine->searchState == SEARCH_STOPPED) return 0;
+    // Search stopping/time management:
+    // Periodically check if the search should be stopped.
+    if ((engine->searchStats.nodes & 0x3FF) == 0) {
+        checkSearchOver(engine);
+    }
 
-    // Probe hash table
+    // Return up the tree if the search was stopped.
+    if (engine->searchState == SEARCH_STOPPED) return 0;
+    
+
+    /**
+     * Probe our hash table to see if we've seen this position before.
+     * Even if we can't immediately return a score, the hash table still gives
+     * us the best move from the past search which we can try first. This is
+     * very likely to cause a cutoff, saving us the time of move generation.
+     */
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
     if (!rootNode) {
         if (hashTableProbe(board->hash, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+            /**
+             * The table returned a score of equal or greater accuracy (depth).
+             * We don't return immediately in PV nodes to protect the our PV from
+             * being cut short.
+             */
             if (hashDepth >= depth && !pvNode) {
+                /**
+                 * We return immediately if the table has an exact score, or a
+                 * score that produces a cutoff with our lower/upper bound.
+                 */
                 if (hashFlag == BOUND_EXACT ||
                     (hashFlag == BOUND_LOWER && hashScore >= beta) ||
                     (hashFlag == BOUND_UPPER && hashScore <= alpha)) {
@@ -132,12 +194,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
     }
 
-    // Periodically check time up, or user ended search
-    if ((engine->searchStats.nodes & 0xFF) == 0) {
-        checkSearchOver(engine);
-    }
-
-    // Check for draws before searching
+    // Check if this node is a draw before searching it.
     if (!rootNode) {
         if (isDraw(board)) {
             pv->length = 0;
@@ -145,16 +202,52 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
     }
 
-    // Begin searching all the moves in the position
-    PV childPV;
+    // Calculate the static evaluation and whether we're in check for use later.
+    bool inCheck = isSquareAttacked(
+        board,
+        board->side,
+        getlsb(board->pieces[KING] & board->colors[board->side])
+    );
+    int eval = evaluate(board);
+
+    /**
+     * Check extension.
+     * It's almost certainly a good idea to search deeper when we're in check to
+     * solve the problem at hand. Conversely, if we're checking our opponent it's
+     * a good idea to search deeper to see if our attack was any good.
+     */
+    if (inCheck) depth++;
+
+    /**
+     * Null move pruning.
+     * If our position is so strong that giving our opponent two moves in a row
+     * still allows us to stay above beta, then this position will likely end
+     * up above beta in a full search, so it's likely safe to prune.
+     * https://www.chessprogramming.org/Null_Move_Pruning
+     */
+    if (!pvNode && !inCheck && eval >= beta && depth >= 2) {
+        int reduction = 4 + depth / 4;
+
+        makeNullMove(board);
+        int score = -search(engine, &childPV, -alpha - 1, -alpha, depth - reduction, ply + 1);
+        undoNullMove(board);
+
+        if (score >= beta) {
+            return beta;
+        }
+    }
+
+    // Since we couldn't get a fast return, therefore must search the position.
     childPV.length = 0;
     
-    int bestScore = -INFINITY;
+    int bestScore = -INFINITE;
     int movesPlayed = 0;
 
     Move bestMove = NO_MOVE;
-    int hashBound = BOUND_UPPER; // Assume upper bound until we find better move
+    int hashBound = BOUND_UPPER;
 
+    // Create a move picker, which picks moves which look better first,
+    // shortening our search by creating cutoffs.
     MovePicker picker;
     initMovePicker(&picker, board, hashMove);
 
@@ -172,7 +265,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
          * Principal variation search (PVS), we search the first move with a full
          * window, assuming that the subsequent moves are worse. The other moves
          * can be searched with the faster null window, and if they fail high, we
-         * re-search them with a full window.
+         * re-search them with a full window to get their real score.
          * https://www.chessprogramming.org/Principal_Variation_Search
          */
         int score;
@@ -180,41 +273,83 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             // Full window search for the first move
             score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
         } else {
-            // Null window search for other moves
-            score = -search(engine, &childPV, -alpha - 1, -alpha, depth - 1, ply + 1);
 
-            // If it fails high, we need to re-search with a full window
+            /**
+             * Late move reductions (LMR).
+             * Under the assumption that our move ordering is quite good, the
+             * later moves in the move list are likely to be bad. Hence, we can
+             * (probably) safely search them to a lower depth and save the time
+             * to search more important variations deeper.
+             * https://www.chessprogramming.org/Late_Move_Reductions
+             */
+
+            // Compute depth reduction for LMR
+            int reducedDepth = depth - 1;
+            if (IsQuiet(move) && !inCheck) {
+                reducedDepth -= LMR_TABLE[depth][movesPlayed];
+                if (reducedDepth < 0)
+                    reducedDepth = 0;
+            }
+
+            // Null window search for non PV moves.
+            score = -search(engine, &childPV, -alpha - 1, -alpha, reducedDepth, ply + 1);
+
+            /**
+             * If the move failed high, we need to re-search with a full window
+             * and at full depth, since the move beat our best score and we need
+             * its precise value.
+             */
             if (score > alpha && score < beta) {
                 score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
             }
         }
         undoMove(board, move);
 
-        // Check if search was stopped
+        // Checking if search was stopped during move loop to return faster.
         if (engine->searchState == SEARCH_STOPPED) return 0;
 
-        // New best move found
+        // A new best move was found!
         if (score > bestScore) {
             bestScore = score;
             bestMove = move;
             
-            // Update alpha if beaten
+            // Update alpha (the lower bound of score) when it was beaten.
             if (score > alpha) {
                 alpha = score;
                 hashBound = BOUND_EXACT;
 
                 if (pvNode) {
-                    // Update PV (Bruce Moreland's method)
+                    /**
+                     * Alpha was beaten in a PV node, meaning our PV needs to be
+                     * updated with a different best line.
+                     * This uses Bruce Moreland's Method of tracking PV.
+                     */
                     pv->length = 1 + childPV.length;
                     pv->moves[0] = move;
                     memcpy(pv->moves + 1, childPV.moves, sizeof(uint16_t) * childPV.length);
                 }
 
-                // Fail high cut-off
-                // The move was too good, the opponent will avoid it!
+                /**
+                 * Fail high cutoff.
+                 * The move just played was too good, beating our upper bound for
+                 * score. This means the rational opponent will avoid it earlier
+                 * in the search tree, so to save time we stop searching now.
+                 */
                 if (alpha >= beta) {
                     hashBound = BOUND_LOWER;
 
+                    /**
+                     * Update quiet move ordering heuristics.
+                     * We store statistics about the good quiet moves which caused
+                     * beta cutoffs, incentivizing our engine to pick them earlier
+                     * in similar positions.
+                     */
+                    if (!IsCapture(move)) {
+                        updateMoveHistory(board, board->side, move, depth);
+                        updateKillers(ply, move);
+                    }
+
+                    // Track move ordering stats
                     if (movesPlayed == 1) {
                         engine->searchStats.fhf++;
                     }
@@ -226,15 +361,12 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
     }
 
-    // If no moves were made, this is either checkmate or stalemate
+    /**
+     * If no legal moves were found in this node, it's either checkmate, or
+     * stalemate.
+     */
     if (movesPlayed == 0) {
-        bool inCheck = isSquareAttacked(
-            board,
-            board->side,
-            getlsb(board->pieces[KING] & board->colors[board->side])
-        );
         pv->length = 0;
-        // Checkmate is bad, stalemate is 0
         if (inCheck)
             return -MATE_SCORE + ply;
         else
@@ -245,6 +377,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     // Store the results of this search in the hash table
     hashTableStore(board->hash, bestMove, depth, bestScore, hashBound);
     
+    // Propogate the best score we found up the tree.
     return bestScore;
 }
 
@@ -291,7 +424,7 @@ Move iterativeDeepening(Engine *engine) {
 
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
-        int score = search(engine, &engine->pv, -INFINITY, INFINITY, depth, 0);
+        int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0);
         if (engine->searchState == SEARCH_STOPPED) {
             break;
         }
@@ -318,4 +451,8 @@ void initSearch(Engine *engine) {
 
     // Set engine state
     engine->searchState = SEARCHING;
+
+    // Clear move ordering heuristics
+    clearMoveHistory();
+    clearKillerMoves();
 }

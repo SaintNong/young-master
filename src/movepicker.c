@@ -1,7 +1,18 @@
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "movepicker.h"
 #include "board.h"
+#include "eval.h"
+#include "search.h"
+
+// Killer moves table
+Move killers[2][MAX_PLY];
+
+// History table
+// history[side][piece][to]
+int history[2][NB_PIECES][64];
 
 // https://www.chessprogramming.org/MVV-LVA
 // MVV-LVA table, indexed by [victim][attacker]
@@ -17,6 +28,64 @@ void initMvvLva() {
     }
 }
 
+// Returns the score of a move for ordering
+int scoreMove(MovePicker *picker, Move move, Board *board) {
+    if (IsCapture(move)) {
+        // Capture scoring using MVV-LVA
+        int victim = board->squares[MoveTo(move)];
+        int attacker = board->squares[MoveFrom(move)];
+        return MVV_LVA[victim][attacker] + CAPTURE_BONUS;
+    }
+
+    // Killer moves
+    if (move == picker->killerOne) return KILLER_ONE_BONUS;
+    if (move == picker->killerTwo) return KILLER_TWO_BONUS;
+
+    // History heuristic
+    int score = history[board->side][board->squares[MoveFrom(move)]][MoveTo(move)];
+
+    return score;
+}
+
+// Clears the move history table
+void clearMoveHistory() {
+    memset(history, 0, sizeof(history));
+}
+
+// Clears the killer table
+void clearKillerMoves() {
+    memset(killers, NO_MOVE, sizeof(killers));
+}
+
+// Updates history heuristic for a move
+void updateMoveHistory(Board *board, int side, Move move, int depth) {
+    int piece = board->squares[MoveFrom(move)];
+    int to    = MoveTo(move);
+   
+    // Find history entry for this move
+    int *entry = &history[side][piece][to];
+    int delta  = depth * depth;
+
+    // Exponential decay for history
+    *entry += delta - (*entry * abs(delta)) / HISTORY_DIVISOR;
+    // printf("%d - %s\n", *entry, moveToString(move));
+
+    // Clamp history value to safe range
+    if (*entry > HISTORY_MAX_VALUE)  *entry = HISTORY_MAX_VALUE;
+    if (*entry < -HISTORY_MAX_VALUE) *entry = -HISTORY_MAX_VALUE;
+}
+
+
+// Sets killer moves at given ply
+void updateKillers(int ply, Move move) {
+    // Avoid saving same killer twice
+    if (killers[0][ply] == move) return;
+
+    // Demote old killer #1 to killer #2
+    killers[1][ply] = killers[0][ply];
+    killers[0][ply] = move;
+}
+
 // Initialize the move picker
 void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
     if (hashMove != NO_MOVE)
@@ -27,21 +96,15 @@ void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
     picker->moveList.count = 0;
     picker->currentIndex = 0;
     picker->hashMove = hashMove;
+
+    // Retrieve killers from table
+    picker->killerOne = killers[board->side][0];
+    picker->killerTwo = killers[board->side][1];
     
     // Initialize all move scores to 0
     for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
         picker->moveScores[i] = 0;
     }
-}
-
-// Returns the score of a move for ordering
-int scoreMove(Move move, Board *board) {
-    if (IsCapture(move)) {
-        int victim = board->squares[MoveTo(move)];
-        int attacker = board->squares[MoveFrom(move)];
-        return MVV_LVA[victim][attacker] + CAPTURE_BONUS;
-    }
-    return 0;
 }
 
 // Picks the next best move
@@ -60,7 +123,8 @@ Move pickMove(MovePicker *picker, Board *board) {
             
             // Score all moves
             for (int i = 0; i < picker->moveList.count; i++) {
-                picker->moveScores[i] = scoreMove(picker->moveList.list[i], board);
+                Move move = picker->moveList.list[i];
+                picker->moveScores[i] = scoreMove(picker, move, board);
             }
             
             picker->stage = STAGE_MAIN;

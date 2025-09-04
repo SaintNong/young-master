@@ -7,6 +7,7 @@
 #include "movepicker.h"
 #include "zobrist.h"
 #include "hashtable.h"
+#include "search.h"
 
 #include "board.h"
 #include "move.h"
@@ -30,6 +31,7 @@ void initialise() {
     initMvvLva();
     initZobristKeys();
     initHashTable(128);
+    initLMRTable();
 }
 
 int main(void) {

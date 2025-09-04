@@ -13,7 +13,12 @@ typedef enum {
 } MovePickerStage;
 
 #define CAPTURE_BONUS 100000
-#define HASH_MOVE_BONUS 900000
+#define KILLER_ONE_BONUS 900001
+#define KILLER_TWO_BONUS 900000
+#define COUNTER_MOVE_BONUS 800000
+
+#define HISTORY_MAX_VALUE 100000
+#define HISTORY_DIVISOR HISTORY_MAX_VALUE - 1
 
 // Move picker structure
 typedef struct {
@@ -21,11 +26,18 @@ typedef struct {
     int moveScores[MAX_LEGAL_MOVES];
     MovePickerStage stage;
     Move hashMove;
+    Move killerOne, killerTwo;
     int currentIndex;
 } MovePicker;
 
 // Move scoring
 void initMvvLva();
+
+void clearMoveHistory();
+void clearKillerMoves();
+
+void updateMoveHistory(Board *board, int side, Move move, int depth);
+void updateKillers(int ply, Move move);
 
 // Move picker
 void initMovePicker(MovePicker *picker, Board *board, Move hashMove);
