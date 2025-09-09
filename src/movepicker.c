@@ -136,7 +136,7 @@ Move pickMove(MovePicker *picker, Board *board) {
             // Fall through to generate stage
         case STAGE_GENERATE:
             // Generate moves after hash move
-            generateLegalMoves(&picker->moveList, board);
+            generatePseudoLegalMoves(&picker->moveList, board);
             
             // Score all moves
             for (int i = 0; i < picker->moveList.count; i++) {

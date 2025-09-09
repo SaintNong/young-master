@@ -260,26 +260,6 @@ void generatePseudoLegalMoves(MoveList *moves, Board *board) {
     generateKingMoves(moves, board);
 }
 
-void generateLegalMoves(MoveList *moves, Board *board) {
-    // NOTE: Should not be used, it's highly inefficient
-    // Generally we just check legality as we make the moves
-
-    MoveList tempMoves;
-    generatePseudoLegalMoves(&tempMoves, board);
-
-    moves->count = 0;
-
-    for (int i = 0; i < tempMoves.count; i++) {
-        if (makeMove(board, tempMoves.list[i]) == 0) {
-            undoMove(board, tempMoves.list[i]);
-            continue;
-        }
-        moves->list[moves->count] = tempMoves.list[i];
-        moves->count++;
-        undoMove(board, tempMoves.list[i]);
-    }
-}
-
 void printMoveList(MoveList moves) {
     // Debug function:
     // Prints move and move type of all moves in a movelist
