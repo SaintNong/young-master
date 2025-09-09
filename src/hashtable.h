@@ -2,6 +2,8 @@
 
 #include "uci.h"
 
+#define BYTES_PER_MB 1000 * 1000
+
 // Hash flags
 enum {
   // Entry does not exist
@@ -37,14 +39,13 @@ typedef struct {
 
 // Hash table functions
 void initHashTable(int sizeMB);
-void freeHashTable();
+void cleanUpHashTable();
 void clearHashTable();
 double occupiedHashEntries();
 
 // For use in game
 void hashTableStore(U64 hash, Move bestMove, int depth, int score, int flag);
 int hashTableProbe(U64 hash, Move *hashMove, int *depth, int *score, int *flag);
-void updateHashAge();
 
 
 

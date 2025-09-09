@@ -35,6 +35,10 @@ void initLMRTable() {
     }
 }
 
+// Some random variation to draw scores help avoid blindness to three-fold lines.
+int drawScore(U64 nodes) {
+    return 3 - (nodes & 0x3);
+}
 
 // Check if search is over, or user typed stop
 // TODO: handle user stop
@@ -61,9 +65,11 @@ static int checkSearchOver(Engine *engine) {
 }
 
 // Searches until the position is non tactical to get a more accurate evaluation.
-static int quiesce(Engine *engine, int alpha, int beta) {
+static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     engine->searchStats.nodes++;
     Board *board = &engine->board;
+
+    const int pvNode = (alpha != beta - 1);
 
     // Search stopping/time management:
     // Periodically check if the search should be stopped.
@@ -74,9 +80,33 @@ static int quiesce(Engine *engine, int alpha, int beta) {
     // Return up the tree if the search was stopped.
     if (engine->searchState == SEARCH_STOPPED) return 0;
 
+    // Don't search if we're at our max depth to avoid memory corruption.
+    if (ply >= MAX_DEPTH - 1) {
+        return evaluate(board);
+    }
+
     // Check if this node is a draw before searching further.
     if (isDraw(board)) {
-        return 0;
+        return drawScore(engine->searchStats.nodes);
+    }
+
+    /**
+     * Probe our hash table.
+     */
+    Move hashMove = NO_MOVE;
+    int hashDepth, hashScore, hashFlag;
+    if (!pvNode) {
+        if (hashTableProbe(board->hash, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+            /**
+             * We return immediately if the table has an exact score, or a
+             * score that produces a cutoff with our lower/upper bound.
+             */
+            if (hashFlag == BOUND_EXACT ||
+                (hashFlag == BOUND_LOWER && hashScore >= beta) ||
+                (hashFlag == BOUND_UPPER && hashScore <= alpha)) {
+                return hashScore;
+            }
+        }
     }
     
     /*
@@ -95,8 +125,10 @@ static int quiesce(Engine *engine, int alpha, int beta) {
         alpha = standPat;
     
     
-    // Begin searching this node.
+    // Begin searching noisy moves in this node.
     int bestScore = standPat;
+    int hashBound = BOUND_UPPER;
+    Move bestMove = NO_MOVE;
     MovePicker picker;
     initMovePicker(&picker, board, NO_MOVE);
 
@@ -111,8 +143,8 @@ static int quiesce(Engine *engine, int alpha, int beta) {
             continue;
         }
         
-        // Search the next layer.
-        int score = -quiesce(engine, -beta, -alpha);
+        // Search the next layer in the tree.
+        int score = -quiesce(engine, -beta, -alpha, ply + 1);
         undoMove(board, move);
 
         // If the search is stopped we want to return as soon as possible.
@@ -121,19 +153,28 @@ static int quiesce(Engine *engine, int alpha, int beta) {
         // Score beat our best score.
         if (score > bestScore) {
             bestScore = score;
+            bestMove = move;
             
             // Update alpha if beaten.
             if (score > alpha) {
                 alpha = score;
-            }
+                hashBound = BOUND_EXACT;
 
-            // Move was too good, and will be avoided by the opponent.
-            if (alpha >= beta)
-                break;
+                // Move was too good, and will be avoided by the opponent.
+                if (alpha >= beta) {
+                    hashBound = BOUND_LOWER;
+
+                    break;
+                }
+            }
         }
     }
     
-    return alpha;
+    // Store the results of this search in the hash table
+    hashTableStore(board->hash, bestMove, 0, bestScore, hashBound);
+
+    // Propogate the best score we found up the tree.
+    return bestScore;
 }
 
 // Principal variation search, with fail-soft alpha beta.
@@ -145,11 +186,11 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     const int pvNode = (alpha != beta - 1);
 
     /**
-     * When we reach the edge of our search depth, we drop to quiescent search
+     * When we reach the edge of our search depth, we switch to quiescence search
      * to get a more accurate evaluation with no hanging pieces or tactics.
      */
     if (depth <= 0) {
-        return quiesce(engine, alpha, beta);
+        return quiesce(engine, alpha, beta, ply + 1);
     }
 
     // Update nodes searched for UCI reporting
@@ -164,6 +205,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     // Return up the tree if the search was stopped.
     if (engine->searchState == SEARCH_STOPPED) return 0;
     
+    // Don't search if we're at our max depth to avoid memory corruption.
+    if (ply >= MAX_DEPTH - 1) {
+        return evaluate(board);
+    }
 
     /**
      * Probe our hash table to see if we've seen this position before.
@@ -198,7 +243,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (!rootNode) {
         if (isDraw(board)) {
             pv->length = 0;
-            return 0;
+            return drawScore(engine->searchStats.nodes);
         }
     }
 
@@ -225,13 +270,18 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * up above beta in a full search, so it's likely safe to prune.
      * https://www.chessprogramming.org/Null_Move_Pruning
      */
-    if (!pvNode && !inCheck && eval >= beta && depth >= 2) {
+    if (!pvNode && !inCheck && eval >= beta && depth >= 4) {
+        // Calculate reduced depth.
         int reduction = 4 + depth / 4;
+        int nullDepth = depth - reduction;
+        if (nullDepth) nullDepth = 0;
 
+        // Make the null move.
         makeNullMove(board);
-        int score = -search(engine, &childPV, -alpha - 1, -alpha, depth - reduction, ply + 1);
+        int score = -search(engine, &childPV, -alpha - 1, -alpha, nullDepth, ply + 1);
         undoNullMove(board);
 
+        // If we are still above beta then we prune this branch.
         if (score >= beta) {
             return beta;
         }
@@ -437,8 +487,8 @@ Move iterativeDeepening(Engine *engine) {
     return bestMove;
 }
 
-// Initialise search data
-void initSearch(Engine *engine) {
+// Gets the engine ready to search, with given limits.
+void initSearch(Engine *engine, SearchLimits limits) {
     // Clear the principal variation
     engine->pv.length = 0;
     memset(engine->pv.moves, NO_MOVE, sizeof(engine->pv.moves));

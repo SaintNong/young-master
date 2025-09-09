@@ -4,10 +4,11 @@
 #include "bitboards.h"
 
 #define NAME "Empyrean"
-#define VERSION "v0.5"
+#define VERSION "v1.0 Alpha"
 #define AUTHOR "Ning XZ"
 
-#define INPUT_BUFFER_SIZE 2048
+#define FEN_BUFFER_SIZE 256
+#define INPUT_BUFFER_SIZE 8192
 
 #define MAX_PLY 128
 

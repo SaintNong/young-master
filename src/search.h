@@ -16,5 +16,5 @@
 
 // Search functions
 Move iterativeDeepening(Engine *engine);
-void initSearch(Engine *engine);
+void initSearch(Engine *engine, SearchLimits limits);
 void initLMRTable();

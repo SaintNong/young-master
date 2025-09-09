@@ -5,13 +5,40 @@
 #include "board.h"
 #include "bitboards.h"
 
+/**
+ * The game phase increments for each piece on the board, weighted by its value.
+ * The lower this value, the closer the board is to an endgame. This is used to
+ * interpolate the evaluation score between the middlegame and endgame to prevent
+ * evaluation discontinuity. This value starts at 24, and lowers to zero by the
+ * time a pawn endgame is reached.
+ */
+int getGamePhase(Board *board) {
+    int phase = 0;
+
+    // Loop through all pieces which affect game phase.
+    for (int piece = KNIGHT; piece <= QUEEN; piece++) {
+        // Increment the phase by how many pieces of that type is on the board.
+        phase += popCount(board->pieces[piece]) * GAME_PHASE_INCREMENTS[piece];
+    }
+    
+    // Clamp phase in case someone promotes early.
+    if (phase > PHASE_MAX) phase = PHASE_MAX;
+    return phase;
+}
+
+
+// Interpolates the middlegame and endgame scores based on the phase.
+int taper(int mg, int eg, int phase) {
+    return (mg * phase + eg * (PHASE_MAX - phase)) / PHASE_MAX;
+}
+
+
 // Evaluation of the current board state, from the side to move's POV
 int evaluate(Board *board) {
-    if (isDraw(board)) {
-        return 0;
-    }
 
-    int score = 0;
+    // Seperate score for middlegame and endgame
+    int scoreMG = 0;
+    int scoreEG = 0;
 
     // Go through all the pieces
     for (int piece = PAWN; piece <= KING; piece++) {
@@ -21,23 +48,50 @@ int evaluate(Board *board) {
         while (pieces) {
             int square = poplsb(&pieces);
             if (testBit(board->colors[WHITE], square)) {
-                // White piece
-                score += PSQT[piece][MIRROR_SQ(square)];
-                score += MATERIAL_VALUES[piece];
+                // White
+                // Material
+                scoreMG += MATERIAL_VALUES_MG[piece];
+                scoreEG += MATERIAL_VALUES_EG[piece];
+
+                // Piece square tables
+                scoreMG += PSQT_MG[piece][MIRROR_SQ(square)];
+                scoreEG += PSQT_EG[piece][MIRROR_SQ(square)];
+
             } else {
-                // Black piece
-                score -= PSQT[piece][square];
-                score -= MATERIAL_VALUES[piece];
+                // Black
+                // Material
+                scoreMG -= MATERIAL_VALUES_MG[piece];
+                scoreEG -= MATERIAL_VALUES_EG[piece];
+
+                // Piece square tables
+                scoreMG -= PSQT_MG[piece][square];
+                scoreEG -= PSQT_EG[piece][square];
             }
         }
     }
 
     // Bishop pair
     U64 bishops = board->pieces[BISHOP];
-    if (popCount(board->colors[WHITE] & bishops) >= 2)
-        score += BISHOP_PAIR_VALUE;
-    if (popCount(board->colors[BLACK] & bishops) >= 2)
-        score -= BISHOP_PAIR_VALUE;
+    if (multipleBits(board->colors[WHITE] & bishops)) {
+        scoreMG += BISHOP_PAIR_MG;
+        scoreEG += BISHOP_PAIR_EG;
+    }
+    if (multipleBits(board->colors[BLACK] & bishops)) {
+        scoreMG -= BISHOP_PAIR_MG;
+        scoreEG -= BISHOP_PAIR_EG;
+    }
+
+    // Taper the score
+    int phase = getGamePhase(board);
+    int score = taper(scoreMG, scoreEG, phase);
+    // printf("MG: %d EG: %d\n", scoreMG, scoreEG);
+
+    // Tempo bonus
+    if (board->side == WHITE) {
+        score += TEMPO;
+    } else {
+        score -= TEMPO;
+    }
 
     // Negamax requires score to be from our point of view
     return (board->side == WHITE) ? score : -score;
@@ -48,16 +102,8 @@ void printEvaluation(Board *board) {
     printBoard(board);
 
     int score = evaluate(board);
-    printf("Evaluation: %d (", score);
-    if (abs(score) < 25) {
-        printf("the position is roughly even");
-    } else if (abs(score) < 70) {
-        printf(score > 0 ? "White is slightly better" : "Black is slightly better");
-    } else if (abs(score) < 150) {
-        printf(score > 0 ? "White is better" : "Black is better");
-    } else {
-        printf(score > 0 ? "White is winning" : "Black is winning");
-    }
+    int phase = getGamePhase(board);
+    printf("Evaluation: %d\n", score);
+    printf("Phase: %d\n", phase);
     
-    printf(")\n");
 }

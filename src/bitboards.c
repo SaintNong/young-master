@@ -47,6 +47,11 @@ bool testBit(U64 bitboard, int sq) {
     return bitboard & (1ULL << sq);
 }
 
+// https://www.chessprogramming.org/Population_Count#Single_Populated_Bitboards
+bool multipleBits(U64 bitboard) {
+    return bitboard & (bitboard - 1);
+}
+
 // Displays bitboard with chess coordinates
 // Set bits are marked 'X'
 void printBitboard(U64 bitboard) {

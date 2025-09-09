@@ -1,7 +1,6 @@
 # Empyrean Chess Engine (天尊象棋引擎)
 
-![Empyrean](https://img.shields.io/badge/Cultivation%20Realm-Venerable%20One-red) ![Language](https://img.shields.io/badge/Language-C-brightgreen) 
- [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Language](https://img.shields.io/badge/Language-C-brightgreen) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
 ## Descending from the Divine Realm
@@ -11,5 +10,6 @@ Empyrean is a UCI-compatible chess engine written in C, not for the praise of mo
 ## Credits
 Thank you to:
 - Pradu Kannan for the excellent modern magic bitboard implementation used in this project
+- The creators of [cutechess](https://github.com/cutechess/cutechess), a GUI which was very helpful in testing if changes made were actually effective.
 - The [VICE series](https://github.com/bluefeversoft/vice) by BlueFeverSoft for getting me into this hobby
 - The contributors to the [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) for teaching me, and many others much about modern chess programming techniques 

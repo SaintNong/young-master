@@ -72,6 +72,10 @@ Move stringToMove(char *string, Board *board) {
     return ConstructMove(from, to, flag);
 }
 
+float moveOrderingPercentage(SearchInfo info) {
+    return ((float)info.fhf/(float)info.fh) * 100.0;
+}
+
 // Simple time management function to determine how long to search
 int calculateTimeToThink(int timeLeft, int increment, int movesToGo) {
     if (movesToGo < 0) {
@@ -112,7 +116,7 @@ void handlePosition(Engine *engine, char *input) {
         parseFen(board, START_FEN);
         token = strtok(NULL, " "); // to 'moves' or NULL
     } else if (strcmp(token, "fen") == 0) {
-        char fen[100];
+        char fen[FEN_BUFFER_SIZE];
         fen[0] = '\0';
         token = strtok(NULL, " "); // to actual FEN part
         while (token != NULL && strcmp(token, "moves") != 0) {
@@ -129,7 +133,7 @@ void handlePosition(Engine *engine, char *input) {
         while (token != NULL) {
             if (makeMove(board, stringToMove(token, board)) == 0) {
                 // Move was illegal, or my code was wrong..
-                printf("Move parsing error at: %s\n", token);
+                printf("Illegal move found at: %s\n", token);
                 exit(EXIT_FAILURE);
             }
             // Advance to next move
@@ -144,7 +148,7 @@ void handleGo(Engine *engine, char *input) {
     SearchLimits limits;
 
     // Default search type is infinite
-    limits.depth = MAX_DEPTH;
+    limits.depth = MAX_DEPTH - 1;
     limits.nodes = -1;
     limits.searchType = LIMIT_INFINITE;
 
@@ -174,13 +178,15 @@ void handleGo(Engine *engine, char *input) {
     if (index) {
         limits.depth = atoi(index + 6);
         if (limits.depth <= 0) limits.depth = 1;
+        if (limits.depth > MAX_DEPTH) limits.depth = MAX_DEPTH;
         limits.searchType = LIMIT_DEPTH;
     }
 
     index = strstr(input, "movetime");
     if (index) {
-        timeToSearch = atoi(index + 9);
-        limits.searchType = LIMIT_TIME * 0.9;
+        timeToSearch = atoi(index + 9) - 50;
+        limits.searchType = LIMIT_TIME;
+        printf("Time budgeted for search: %d ms\n", timeToSearch);
     }
 
     index = strstr(input, "nodes");
@@ -210,20 +216,22 @@ void handleGo(Engine *engine, char *input) {
     limits.searchStopTime = getTime() + timeToSearch;
 
 
-    // Start the search
-    initSearch(engine);
+    // Start the search within the given limits
+    initSearch(engine, limits);
     engine->limits = limits;
     Move bestMove = iterativeDeepening(engine);
 
     printf("bestmove %s\n", moveToString(bestMove));
-    
+
     // Print search statistics
+    printf("Ordering: %.2lf%%\n", moveOrderingPercentage(engine->searchStats));
     printf("Hash table occupied: %.2f%%\n", occupiedHashEntries());
 }
 
 // Clean up before exiting
 void handleQuit(Engine *engine) {
-
+    // Free hash table
+    cleanUpHashTable();
 }
 
 // Start perft from this position, defaults to 4

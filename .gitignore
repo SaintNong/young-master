@@ -1,2 +1,6 @@
+# Binary, and test binaries
 Empyrean
 /sprt
+# fastchess files
+config.json
+log.log

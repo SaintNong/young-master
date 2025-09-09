@@ -16,6 +16,7 @@ int popCount(U64 bitboard);
 void setBit(U64 *bitboard, int sq);
 void clearBit(U64 *bitboard, int sq);
 bool testBit(U64 bitboard, int sq);
+bool multipleBits(U64 bitboard);
 
 // Helper functions for IO
 void printBitboard(U64 bitboard);

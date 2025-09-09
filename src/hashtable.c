@@ -26,7 +26,7 @@ void clearHashTable() {
     }
 }
 
-void freeHashTable() {
+void cleanUpHashTable() {
     free(hashTable.entries);
 }
 
@@ -43,11 +43,10 @@ double occupiedHashEntries() {
 // Initialises hash table to certain size in MB
 void initHashTable(int sizeMB) {
     // Calculate how many hash entries to match the size
-    uint64_t size = sizeMB * 0x100000;
+    uint64_t size = sizeMB * BYTES_PER_MB;
     hashTable.count = size / sizeof(HashEntry);
-    hashTable.count -= 2; // for safety (inherited from VICE)
 
-    // Free hash table
+    // Free the old hash table before reallocating
     free(hashTable.entries);
 
     // Allocate and clear the table
