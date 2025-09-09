@@ -44,8 +44,6 @@ void clearHashTable();
 double occupiedHashEntries();
 
 // For use in game
-void hashTableStore(U64 hash, Move bestMove, int depth, int score, int flag);
-int hashTableProbe(U64 hash, Move *hashMove, int *depth, int *score, int *flag);
-
-
+void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int flag);
+int hashTableProbe(U64 hash, int ply, Move *hashMove, int *depth, int *score, int *flag);
 

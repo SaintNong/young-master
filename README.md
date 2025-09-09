@@ -1,11 +1,11 @@
-# Empyrean Chess Engine (天尊象棋引擎)
+# Empyrean (天尊象棋引擎)
 
-![Language](https://img.shields.io/badge/Language-C-brightgreen) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Language](https://img.shields.io/badge/Language-C-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-white.svg)](https://opensource.org/licenses/MIT)
 
 
 ## Descending from the Divine Realm
 
-Empyrean is a UCI-compatible chess engine written in C, not for the praise of mortals, but to correct the flawed Dao of the modern chess world. It is named after the highest cultivation realm, a place where mere "grandmasters" are but specks of dust beneath my divine sense.
+Empyrean is a UCI-compatible chess engine written in C.
 
 ## Credits
 Thank you to:

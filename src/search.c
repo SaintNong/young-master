@@ -96,7 +96,14 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
     if (!pvNode) {
-        if (hashTableProbe(board->hash, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+        if (hashTableProbe(
+            board->hash,
+            ply,
+            &hashMove,
+            &hashDepth,
+            &hashScore,
+            &hashFlag
+        ) == PROBE_SUCCESS) {
             /**
              * We return immediately if the table has an exact score, or a
              * score that produces a cutoff with our lower/upper bound.
@@ -171,7 +178,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     }
     
     // Store the results of this search in the hash table
-    hashTableStore(board->hash, bestMove, 0, bestScore, hashBound);
+    hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
 
     // Propogate the best score we found up the tree.
     return bestScore;
@@ -219,7 +226,14 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
     if (!rootNode) {
-        if (hashTableProbe(board->hash, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+        if (hashTableProbe(
+            board->hash,
+            ply,
+            &hashMove,
+            &hashDepth,
+            &hashScore,
+            &hashFlag
+        ) == PROBE_SUCCESS) {
             /**
              * The table returned a score of equal or greater accuracy (depth).
              * We don't return immediately in PV nodes to protect the our PV from
@@ -432,7 +446,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
 
     // Store the results of this search in the hash table
-    hashTableStore(board->hash, bestMove, depth, bestScore, hashBound);
+    hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
     
     // Propogate the best score we found up the tree.
     return bestScore;

@@ -13,7 +13,26 @@
 // Global variable :skull:
 HashTable hashTable;
 
+/**
+ * Mate scores are relative to the current ply, but when stored and retrieved
+ * from the hash table, they need to be adjusted for the ply difference. If this
+ * is not done, then the engine distinguish faster/slower mates when retrieving
+ * scores from hash table.
+ */
 
+// If mate score, convert the score from root-relative to node-relative.
+static int toHashScore(int score, int ply) {
+    return (score >= MATE_BOUND) ? score - ply :
+           (score <= -MATE_BOUND) ? score + ply : score;
+}
+
+// If mate score, convert the score from node-relative to root-relative.
+static int fromHashScore(int score, int ply) {
+    return (score >= MATE_BOUND) ? score + ply :
+           (score <= -MATE_BOUND) ? score - ply : score;
+}
+
+// Clears every entry of the hash table
 void clearHashTable() {
     // Loop through the hash entries, setting all the values to empty
     for (int i = 0; i < hashTable.count; i++) {
@@ -26,6 +45,7 @@ void clearHashTable() {
     }
 }
 
+// Cleans up the heap allocated memory the hash table uses.
 void cleanUpHashTable() {
     free(hashTable.entries);
 }
@@ -65,20 +85,21 @@ void initHashTable(int sizeMB) {
     printf("Number of hash entries: %lu\n", hashTable.count);
 }
 
-void hashTableStore(U64 hash, Move bestMove, int depth, int score, int flag) {
-    // Calculate hash index and retrieve corresponding bucket
+void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int flag) {
+    // Calculate hash index and retrieve corresponding entry
     int index = hash % hashTable.count;
     HashEntry *entry = &hashTable.entries[index];
 
+    // Always replace strategy
     entry->hashKey = hash;
     entry->bestMove = bestMove;
     entry->depth = depth;
-    entry->score = score;
+    entry->score = toHashScore(score, ply);
     entry->flag = flag;
 }
 
-int hashTableProbe(U64 hash, Move *hashMove, int *depth, int *score, int *flag) {
-    // Calculate hash index and retrieve corresponding bucket
+int hashTableProbe(U64 hash, int ply, Move *hashMove, int *depth, int *score, int *flag) {
+    // Calculate hash index and retrieve corresponding entry
     int index = hash % hashTable.count;
     HashEntry *entry = &hashTable.entries[index];
 
@@ -87,7 +108,7 @@ int hashTableProbe(U64 hash, Move *hashMove, int *depth, int *score, int *flag) 
         // Copy data over
         *hashMove = entry->bestMove;
         *depth = entry->depth;
-        *score = entry->score;
+        *score = fromHashScore(entry->score, ply);
         *flag = entry->flag;
 
         return PROBE_SUCCESS;
