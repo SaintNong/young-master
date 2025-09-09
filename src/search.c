@@ -270,15 +270,22 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * up above beta in a full search, so it's likely safe to prune.
      * https://www.chessprogramming.org/Null_Move_Pruning
      */
-    if (!pvNode && !inCheck && eval >= beta && depth >= 4) {
+    if (
+        !pvNode
+        && !inCheck
+        && eval >= beta
+        && depth >= 3
+        && !nullMoveIsBad(board) // Don't do null moves when we only have pawns
+        && board->history[board->hisPly-1].move != NO_MOVE
+    ) {
         // Calculate reduced depth.
-        int reduction = 4 + depth / 4;
+        int reduction = 4 + depth / 3;
         int nullDepth = depth - reduction;
-        if (nullDepth) nullDepth = 0;
+        if (nullDepth < 0) nullDepth = 0;
 
         // Make the null move.
         makeNullMove(board);
-        int score = -search(engine, &childPV, -alpha - 1, -alpha, nullDepth, ply + 1);
+        int score = -search(engine, &childPV, -beta, -beta + 1, nullDepth, ply + 1);
         undoNullMove(board);
 
         // If we are still above beta then we prune this branch.
@@ -349,7 +356,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
              * and at full depth, since the move beat our best score and we need
              * its precise value.
              */
-            if (score > alpha && score < beta) {
+            if (score > alpha) {
                 score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
             }
         }
@@ -376,7 +383,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                      */
                     pv->length = 1 + childPV.length;
                     pv->moves[0] = move;
-                    memcpy(pv->moves + 1, childPV.moves, sizeof(uint16_t) * childPV.length);
+                    memcpy(pv->moves + 1, childPV.moves, sizeof(Move) * childPV.length);
                 }
 
                 /**

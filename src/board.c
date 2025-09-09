@@ -198,6 +198,16 @@ U64 attackersToKingSquare(Board *board) {
          board->colors[!board->side];
 }
 
+// Check if zugzwang is unlikely in the current position.
+// If we have any non-pawn pieces, we can probably avoid zugswang.
+bool nullMoveIsBad(Board *board) {
+    U64 us = board->colors[board->side];
+    U64 kings = board->pieces[KING];
+    U64 pawns = board->pieces[PAWN];
+    
+    return (us & (kings | pawns)) == us;
+}
+
 // Detects draws on the board
 bool isDraw(Board *board) {
     /**
@@ -216,8 +226,9 @@ bool isDraw(Board *board) {
     for (int i = board->hisPly - board->fiftyMove; i < board->hisPly - 1; i++) {
         assert(i >= 0 && i < MAX_MOVES);
 
-        if (board->hash == board->history[i].hash)
+        if (board->hash == board->history[i].hash) {
             return true;
+        }
     }
 
     // Type 3. Insufficient material

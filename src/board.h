@@ -115,7 +115,10 @@ U64 allAttackersToSquare(Board *board, U64 occupied, int sq);
 U64 attackersToKingSquare(Board *board);
 void clearBoard(Board *board);
 
+// Checks
 bool isDraw(Board *board);
+bool nullMoveIsBad(Board *board);
+
 // Board IO
 void parseFen(Board *board, char *fen);
 void printBoard(Board *board);
