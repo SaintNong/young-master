@@ -8,11 +8,7 @@
 #include "zobrist.h"
 #include "hashtable.h"
 #include "search.h"
-
-#include "board.h"
-#include "move.h"
-#include "movegen.h"
-#include "bench.h"
+#include "perft.h"
 
 void welcome() {
     printf("%s (%s) is suddenly interrupted during his deep seclusion.", NAME, VERSION);
@@ -26,11 +22,15 @@ void initialise() {
     // Movegen
     initmagicmoves();
     initAttackMasks();
-    
-    // Search
+
+    // Move ordering
     initMvvLva();
+    
+    // Hash table
     initZobristKeys();
     initHashTable(128);
+
+    // Search
     initLMRTable();
 }
 

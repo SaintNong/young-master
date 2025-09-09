@@ -261,12 +261,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
     }
 
-    // Calculate the static evaluation and whether we're in check for use later.
-    bool inCheck = isSquareAttacked(
-        board,
-        board->side,
-        getlsb(board->pieces[KING] & board->colors[board->side])
-    );
+    // Calculate eval and whether we're in check for use later.
+    bool inCheck = boardIsInCheck(board);
     int eval = evaluate(board);
 
     /**

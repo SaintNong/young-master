@@ -5,10 +5,14 @@
 
 #include "board.h"
 
-// Private tables for use in this function only
+// Precalculated attack tables for non-sliders
 U64 knightMasks[64];
 U64 kingMasks[64];
 U64 pawnMasks[2][64];
+
+/* -------------------------------------------------------------------------- */
+/*                          Bitboard Basic Operations                         */
+/* -------------------------------------------------------------------------- */
 
 // bitboard operations
 int getlsb(U64 bitboard) {
@@ -52,22 +56,9 @@ bool multipleBits(U64 bitboard) {
     return bitboard & (bitboard - 1);
 }
 
-// Displays bitboard with chess coordinates
-// Set bits are marked 'X'
-void printBitboard(U64 bitboard) {
-    for (int rank = 7; rank >= 0; --rank) {
-        printf("%d ", rank + 1);
-
-        for (int file = 0; file < 8; ++file) {
-            int sq = squareFrom(file, rank);
-            printf("%c ", testBit(bitboard, sq) ? 'X' : '.');
-        }
-
-        printf("\n");
-    }
-    printf("  a b c d e f g h\n");
-    printf("  Popcount: %d\n", popCount(bitboard));
-}
+/* -------------------------------------------------------------------------- */
+/*                          Non-sliding Piece Attacks                         */
+/* -------------------------------------------------------------------------- */
 
 // Mask generation for non-sliding pieces
 U64 createKnightMask(int sq) {
@@ -161,3 +152,26 @@ U64 knightAttacks(int sq) { return knightMasks[sq]; }
 U64 kingAttacks(int sq) { return kingMasks[sq]; }
 
 U64 pawnAttacks(int color, int sq) { return pawnMasks[color][sq]; }
+
+
+/* -------------------------------------------------------------------------- */
+/*                                  Debugging                                 */
+/* -------------------------------------------------------------------------- */
+
+// Displays bitboard with chess coordinates
+// Set bits are marked 'X'
+void printBitboard(U64 bitboard) {
+    for (int rank = 7; rank >= 0; --rank) {
+        printf("%d ", rank + 1);
+
+        for (int file = 0; file < 8; ++file) {
+            int sq = squareFrom(file, rank);
+            printf("%c ", testBit(bitboard, sq) ? 'X' : '.');
+        }
+
+        printf("\n");
+    }
+    printf("  a b c d e f g h\n");
+    printf("  Popcount: %d\n", popCount(bitboard));
+}
+

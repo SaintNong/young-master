@@ -2,5 +2,5 @@
 
 #include "board.h"
 
-int startPerft(char *FEN, int depth);
+int perftDivide(Board *board, int depth);
 void bench(Board *board, int depth);

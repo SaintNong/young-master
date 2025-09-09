@@ -13,6 +13,10 @@
 // Global variable :skull:
 HashTable hashTable;
 
+/* -------------------------------------------------------------------------- */
+/*                         Hash table helper functions                        */
+/* -------------------------------------------------------------------------- */
+
 /**
  * Mate scores are relative to the current ply, but when stored and retrieved
  * from the hash table, they need to be adjusted for the ply difference. If this
@@ -85,6 +89,8 @@ void initHashTable(int sizeMB) {
     printf("Number of hash entries: %lu\n", hashTable.count);
 }
 
+
+// Stores given information into the hash table.
 void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int flag) {
     // Calculate hash index and retrieve corresponding entry
     int index = hash % hashTable.count;
@@ -98,6 +104,7 @@ void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int 
     entry->flag = flag;
 }
 
+// Probes hash table for information about the current position
 int hashTableProbe(U64 hash, int ply, Move *hashMove, int *depth, int *score, int *flag) {
     // Calculate hash index and retrieve corresponding entry
     int index = hash % hashTable.count;

@@ -6,7 +6,7 @@
 int evaluate(Board *board);
 void printEvaluation(Board *board);
 
-// Combined score of middlegame and endgame.
+// Combined score of middlegame and endgame. (not used yet)
 #define MakeScore(mg, eg) ((int)((unsigned int)(eg) << 16) + (mg))
 #define S(midgame, endgame) MakeScore(midgame, endgame)
 

@@ -7,6 +7,7 @@
 // Search constants
 #define INFINITE 100000
 #define MATE_SCORE 99000
+
 // If abs(score) > MATE_BOUND then mate was found.
 #define MATE_BOUND 98900
 

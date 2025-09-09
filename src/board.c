@@ -179,6 +179,15 @@ int isSquareAttacked(Board *board, int color, int square) {
         (kingAttacks(square) & enemyKings);
 }
 
+// Returns true if the current side to move is in check.
+int boardIsInCheck(Board *board) {
+    return isSquareAttacked(
+        board,
+        board->side,
+        getlsb(board->pieces[KING] & board->colors[board->side])
+    );
+}
+
 // All attackers of a certain square
 U64 allAttackersToSquare(Board *board, U64 occupied, int sq) {
     return 

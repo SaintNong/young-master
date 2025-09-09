@@ -6,6 +6,10 @@
 #include "move.h"
 #include "zobrist.h"
 
+/* -------------------------------------------------------------------------- */
+/*                              Castling Helpers                              */
+/* -------------------------------------------------------------------------- */
+
 static inline void RemoveWhiteCastling(Board *board) {
     board->hash ^= CastleKeys[board->castlePerm];
     board->castlePerm &= ~(CASTLE_WK | CASTLE_WQ);
@@ -41,6 +45,11 @@ static inline void RemoveBlackQueenCastling(Board *board) {
     board->castlePerm &= ~CASTLE_BQ;
     board->hash ^= CastleKeys[board->castlePerm];
 }
+
+/* -------------------------------------------------------------------------- */
+/*                           Board mutation helpers                           */
+/* -------------------------------------------------------------------------- */
+// TODO: probably refactor these functions out somehow because it's quite ugly.
 
 // setPiece but without updating the hash
 // for use in undo where hash is reverted from a saved value
@@ -105,6 +114,11 @@ void movePieceNoHash(Board *board, int from, int to, int color) {
     board->squares[to] = piece;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                 Null Moves                                 */
+/* -------------------------------------------------------------------------- */
+
+// Makes a Null move on the board (basically switches the side and thats it).
 void makeNullMove(Board *board) {
     // Save hard to compute values
     Undo *undo = &board->history[board->hisPly++];
@@ -130,7 +144,11 @@ void makeNullMove(Board *board) {
     assert(board->hash == generateHash(board));
 }
 
+// Undoes a null move (Be careful to only call after you made a null move!)
 void undoNullMove(Board *board) {
+    // Make sure the last move was actually a null move
+    assert(board->history[board->hisPly - 1].move == NO_MOVE);
+
     // Swap the turn back
     board->hisPly--;
     board->side = !board->side;
@@ -144,6 +162,10 @@ void undoNullMove(Board *board) {
 
     assert(board->hash == generateHash(board));
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                  Undo Move                                 */
+/* -------------------------------------------------------------------------- */
 
 // Undoes the previous move on the board
 void undoMove(Board *board, Move move) {
@@ -205,19 +227,22 @@ void undoMove(Board *board, Move move) {
     assert(board->hash == generateHash(board));
 }
 
-// return 1 if currently in check, 0 if not
-int moveWasIllegal(Board *board) {
-    // If the king is attacked, return 1
-    if (isSquareAttacked(
-                    board, !board->side,
-                    getlsb(board->pieces[KING] & board->colors[!board->side])))
-        return 1;
-    else
-        return 0;
+/* -------------------------------------------------------------------------- */
+/*                                  Make Move                                 */
+/* -------------------------------------------------------------------------- */
+
+// Checks if the opponent is currently in check on our turn.
+static inline int moveWasIllegal(Board *board) {
+    return isSquareAttacked(board, !board->side,
+        getlsb(
+        board->pieces[KING] & board->colors[!board->side]
+    ));
 }
 
-// Makes pseudolegal move on the board, returns 1 if it was legal, 0 if it
-// wasn't
+/**
+ * Makes the pseudolegal move on the board, returns true if it was legal,
+ * false if it was not.
+ */
 int makeMove(Board *board, Move move) {
     // Extract information from the move
     int from = MoveFrom(move);

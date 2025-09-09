@@ -3,6 +3,7 @@
 #include <time.h>
 #include <inttypes.h>
 
+#include "perft.h"
 #include "bitboards.h"
 #include "board.h"
 #include "makemove.h"
@@ -37,33 +38,32 @@ U64 perft(Board *board, int depth) {
     return nodes;
 }
 
-// Starts perft test with stats for each move
-int startPerft(char *FEN, int depth) {
-    // Setup board state
-    Board board;
-    parseFen(&board, FEN);
-    printBoard(&board);
-
+// Perft with a count for each move
+// Super helpful for debugging
+int perftDivide(Board *board, int depth) {
     printf("Starting perft at depth %d\n", depth);
 
     U64 nodes = 0;
-    U64 nodesThisMove;
 
-    // Generate first ply of moves
+    // Start move generation
     MoveList moves;
-    generateLegalMoves(&moves, &board);
+    generatePseudoLegalMoves(&moves, board);
 
     for (int i = 0; i < moves.count; i++) {
-        printf("%d: ", i);
-        printMove(moves.list[i], 0);
-        makeMove(&board, moves.list[i]);
+        Move move = moves.list[i];
 
-        // Start perft for each move
-        nodesThisMove = perft(&board, depth - 1);
-        printf(" - %" PRIu64 "\n", nodesThisMove);
+        // Skip illegals
+        if (makeMove(board, moves.list[i]) == 0) {
+            undoMove(board, move);
+        }
 
+        // Print node count in branch after this move
+        U64 nodesThisMove = perft(board, depth - 1);
+        printf("%s - %" PRIu64 "\n", moveToString(move), nodesThisMove);
         nodes += nodesThisMove;
-        undoMove(&board, moves.list[i]);
+
+        // Undo the move
+        undoMove(board, moves.list[i]);
     }
 
     printf("Total nodes: %" PRIu64 "\n", nodes);

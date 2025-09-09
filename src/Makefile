@@ -17,6 +17,10 @@ noflags:
 debug:
 	gcc $(SRC) $(FLAGS) $(LIBS) -o ../$(EXE)
 
+# compiles with gprof
+profile:
+	gcc $(SRC) -pg $(FLAGS) $(LIBS) $(NO_DEBUG) -o ../$(EXE)
+
 # fastest compile
 performance:
 	gcc $(SRC) $(FLAGS) $(LIBS) $(NO_DEBUG) -o ../$(EXE)

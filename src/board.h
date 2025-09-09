@@ -114,8 +114,9 @@ int isSquareAttacked(Board *board, int color, int square);
 U64 allAttackersToSquare(Board *board, U64 occupied, int sq);
 U64 attackersToKingSquare(Board *board);
 void clearBoard(Board *board);
+int boardIsInCheck(Board *board);
 
-// Checks
+// Information
 bool isDraw(Board *board);
 bool nullMoveIsBad(Board *board);
 

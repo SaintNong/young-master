@@ -5,6 +5,11 @@
 #include "board.h"
 #include "bitboards.h"
 
+
+/* -------------------------------------------------------------------------- */
+/*                             Tapered Evaluation                             */
+/* -------------------------------------------------------------------------- */
+
 /**
  * The game phase increments for each piece on the board, weighted by its value.
  * The lower this value, the closer the board is to an endgame. This is used to
@@ -32,6 +37,9 @@ int taper(int mg, int eg, int phase) {
     return (mg * phase + eg * (PHASE_MAX - phase)) / PHASE_MAX;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              Evaluation (main)                             */
+/* -------------------------------------------------------------------------- */
 
 // Evaluation of the current board state, from the side to move's POV
 int evaluate(Board *board) {
@@ -97,7 +105,11 @@ int evaluate(Board *board) {
     return (board->side == WHITE) ? score : -score;
 }
 
-// Debug function to print the current evaluation
+/* -------------------------------------------------------------------------- */
+/*                                  Debugging                                 */
+/* -------------------------------------------------------------------------- */
+
+// Debug function to print the current evaluation and phase
 void printEvaluation(Board *board) {
     printBoard(board);
 

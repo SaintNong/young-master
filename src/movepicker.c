@@ -7,15 +7,18 @@
 #include "eval.h"
 #include "search.h"
 
-// Killer moves table
+/* -------------------------------------------------------------------------- */
+/*                                 Move Scorer                                */
+/* -------------------------------------------------------------------------- */
+
+// killers[side][ply]
 Move killers[2][MAX_PLY];
 
-// History table
 // history[side][piece][to]
 int history[2][NB_PIECES][64];
 
 // https://www.chessprogramming.org/MVV-LVA
-// MVV-LVA table, indexed by [victim][attacker]
+// MVV_LVA[victim][attacker]
 int MVV_LVA[NB_PIECES][NB_PIECES];
 
 void initMvvLva() {
@@ -23,7 +26,8 @@ void initMvvLva() {
     
     for (int victim = PAWN; victim <= KING; victim++) {
         for (int attacker = PAWN; attacker <= KING; attacker++) {
-            MVV_LVA[victim][attacker] = pieceValues[victim] * 100 + (100 - pieceValues[attacker] / 10);
+            MVV_LVA[victim][attacker] = pieceValues[victim] * 100
+                + (100 - pieceValues[attacker] / 10);
         }
     }
 }
@@ -86,6 +90,19 @@ void updateKillers(int ply, Move move) {
     killers[0][ply] = move;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                             Staged Move Picker                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Move ordering:
+ *   - Hash Move
+ *   - Captures (Ordered via MVV-LVA)
+ *   - Killer One
+ *   - Killer Two
+ *   - Quiet moves (Ordered via history)
+ */
+
 // Initialize the move picker
 void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
     if (hashMove != NO_MOVE)
@@ -118,7 +135,7 @@ Move pickMove(MovePicker *picker, Board *board) {
 
             // Fall through to generate stage
         case STAGE_GENERATE:
-            // Generate all moves
+            // Generate moves after hash move
             generateLegalMoves(&picker->moveList, board);
             
             // Score all moves
@@ -128,11 +145,11 @@ Move pickMove(MovePicker *picker, Board *board) {
             }
             
             picker->stage = STAGE_MAIN;
-            // Fall through to main stage
 
+            // Fall through to main stage
         case STAGE_MAIN:
             if (picker->currentIndex < picker->moveList.count) {
-                // Find the best move remaining
+                // Find the best move remaining (selection sort)
                 int bestIndex = picker->currentIndex;
                 for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
                     if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
@@ -146,9 +163,9 @@ Move pickMove(MovePicker *picker, Board *board) {
                     picker->moveScores[picker->currentIndex] = picker->moveScores[bestIndex];
                     picker->moveScores[bestIndex] = tmpScore;
 
-                    Move tmpMove = picker->moveList.list[picker->currentIndex];
+                    Move tmp = picker->moveList.list[picker->currentIndex];
                     picker->moveList.list[picker->currentIndex] = picker->moveList.list[bestIndex];
-                    picker->moveList.list[bestIndex] = tmpMove;
+                    picker->moveList.list[bestIndex] = tmp;
                 }
 
                 // Don't return the hash move again

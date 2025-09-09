@@ -7,7 +7,7 @@
 #include "utils.h"
 #include "makemove.h"
 #include "move.h"
-#include "bench.h"
+#include "perft.h"
 #include "eval.h"
 #include "search.h"
 #include "hashtable.h"
@@ -237,13 +237,18 @@ void handleQuit(Engine *engine) {
 // Start perft from this position, defaults to 4
 void handlePerft(Engine *engine, char *input) {
     int depth = 4;
-    sscanf(input, "perft %d", &depth);
 
     printBoard(&engine->board);
-    bench(&engine->board, depth);
+    if (strstr(input, "perft divide")) {
+        // Provides a breakdown of the nodes after each move from this position.
+        sscanf(input, "perft divide %d", &depth);
+        perftDivide(&engine->board, depth);
+    } else {
+        // Runs perft, and statistics like speed and time taken.
+        sscanf(input, "perft %d", &depth);
+        bench(&engine->board, depth);
+    }
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 /*                                  UCI Loop                                  */
