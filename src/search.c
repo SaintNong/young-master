@@ -91,7 +91,12 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     }
 
     /**
-     * Probe our hash table.
+     * Probe our hash table in qsearch.
+     * Here's a debate on whether it's correct to use our hash table in qsearch.
+     * From my own testing I found a very slight gain by probing/storing in
+     * quiescence, so decided to keep it in, especially since all the top engines
+     * are doing it this way now.
+     * https://talkchess.com/viewtopic.php?t=47373
      */
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
@@ -137,12 +142,14 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     int hashBound = BOUND_UPPER;
     Move bestMove = NO_MOVE;
     MovePicker picker;
+
+    // Don't use hash move because it's usually not helpful in qsearch (i think)
     initMovePicker(&picker, board, NO_MOVE);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
         // Skip non noisy moves.
-        if (!IsCapture(move)) continue;
+        if (!IsCapture(move)) break;
         
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {
@@ -177,7 +184,11 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
         }
     }
     
-    // Store the results of this search in the hash table
+    /**
+     * Store the results of this search in the hash table.
+     * We store with depth zero so the score is not trusted for cutoffs in the
+     * main search tree.
+     */
     hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
 
     // Propogate the best score we found up the tree.
@@ -194,7 +205,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
     /**
      * When we reach the edge of our search depth, we switch to quiescence search
-     * to get a more accurate evaluation with no hanging pieces or tactics.
+     * to take a more accurate evaluation with no tricky hanging pieces or tactics.
+     * https://www.chessprogramming.org/Quiescence_Search
      */
     if (depth <= 0) {
         return quiesce(engine, alpha, beta, ply + 1);
@@ -222,6 +234,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * Even if we can't immediately return a score, the hash table still gives
      * us the best move from the past search which we can try first. This is
      * very likely to cause a cutoff, saving us the time of move generation.
+     * Very useful explanations here:
+     * https://www.chessprogramming.org/Transposition_Table
      */
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
@@ -269,6 +283,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * It's almost certainly a good idea to search deeper when we're in check to
      * solve the problem at hand. Conversely, if we're checking our opponent it's
      * a good idea to search deeper to see if our attack was any good.
+     * https://www.chessprogramming.org/Check_Extensions
      */
     if (inCheck) depth++;
 
@@ -384,12 +399,13 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                 alpha = score;
                 hashBound = BOUND_EXACT;
 
+                /**
+                 * If alpha was beaten in a PV node, our principal variation
+                 * needs to be updated with the new best line.
+                 * My implementation uses Bruce Moreland's Method of tracking PV.
+                 * https://www.chessprogramming.org/Principal_Variation
+                 */
                 if (pvNode) {
-                    /**
-                     * Alpha was beaten in a PV node, meaning our PV needs to be
-                     * updated with a different best line.
-                     * This uses Bruce Moreland's Method of tracking PV.
-                     */
                     pv->length = 1 + childPV.length;
                     pv->moves[0] = move;
                     memcpy(pv->moves + 1, childPV.moves, sizeof(Move) * childPV.length);
@@ -400,6 +416,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                  * The move just played was too good, beating our upper bound for
                  * score. This means the rational opponent will avoid it earlier
                  * in the search tree, so to save time we stop searching now.
+                 * https://www.chessprogramming.org/Fail-High
                  */
                 if (alpha >= beta) {
                     hashBound = BOUND_LOWER;
@@ -409,6 +426,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                      * We store statistics about the good quiet moves which caused
                      * beta cutoffs, incentivizing our engine to pick them earlier
                      * in similar positions.
+                     * https://www.chessprogramming.org/Move_Ordering
                      */
                     if (!IsCapture(move)) {
                         updateMoveHistory(board, board->side, move, depth);
@@ -428,7 +446,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     }
 
     /**
-     * If no legal moves were found in this node, it's either checkmate, or
+     * If no legal moves were found in this node, it's either checkmate or
      * stalemate.
      */
     if (movesPlayed == 0) {
@@ -491,6 +509,7 @@ Move iterativeDeepening(Engine *engine) {
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
         int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0);
+
         if (engine->searchState == SEARCH_STOPPED) {
             break;
         }
