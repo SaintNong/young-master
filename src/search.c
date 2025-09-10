@@ -20,8 +20,8 @@ int LMR_TABLE[MAX_DEPTH][MAX_LEGAL_MOVES];
 
 // Initialises the Late Move Reduction Table
 void initLMRTable() {
-    for (int depth = 1; depth < 64; depth++) {
-        for (int movesPlayed = 1; movesPlayed < 64; movesPlayed++) {
+    for (int depth = 1; depth < MAX_DEPTH; depth++) {
+        for (int movesPlayed = 1; movesPlayed < MAX_LEGAL_MOVES; movesPlayed++) {
             // Eyeballed
             int reduction = 0.10 + log(depth) * log(movesPlayed) / 4.0;
             if (reduction < 0)
