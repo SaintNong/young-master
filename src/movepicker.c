@@ -22,12 +22,12 @@ int history[2][NB_PIECES][64];
 int MVV_LVA[NB_PIECES][NB_PIECES];
 
 void initMvvLva() {
-    int pieceValues[NB_PIECES] = {10, 30, 31, 50, 90, 1000};
+    const int PIECE_VALUES[NB_PIECES] = {10, 30, 31, 50, 90, 1000};
     
     for (int victim = PAWN; victim <= KING; victim++) {
         for (int attacker = PAWN; attacker <= KING; attacker++) {
-            MVV_LVA[victim][attacker] = pieceValues[victim] * 100
-                + (100 - pieceValues[attacker] / 10);
+            MVV_LVA[victim][attacker] = PIECE_VALUES[victim] * 100
+                + (100 - PIECE_VALUES[attacker] / 10);
         }
     }
 }
@@ -94,6 +94,31 @@ void updateKillers(int ply, Move move) {
 /*                             Staged Move Picker                             */
 /* -------------------------------------------------------------------------- */
 
+// Swaps moves and their scores by index
+static void swapMoves(MovePicker *picker, int index1, int index2) {
+    // Swap moves
+    Move tempMove = picker->moveList.list[index1];
+    picker->moveList.list[index1] = picker->moveList.list[index2];
+    picker->moveList.list[index2] = tempMove;
+    
+    // Swap scores
+    int tempScore = picker->moveScores[index1];
+    picker->moveScores[index1] = picker->moveScores[index2];
+    picker->moveScores[index2] = tempScore;
+}
+
+// Finds the index of the highest scored move not already picked
+static int bestMoveIndex(MovePicker *picker) {
+    int bestIndex = picker->currentIndex;
+    for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
+        if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
+            bestIndex = i;
+        }
+    }
+    return bestIndex;
+}
+
+
 /**
  * Move ordering:
  *   - Hash Move
@@ -148,39 +173,24 @@ Move pickMove(MovePicker *picker, Board *board) {
 
             // Fall through to main stage
         case STAGE_MAIN:
-            if (picker->currentIndex < picker->moveList.count) {
-                // Find the best move remaining (selection sort)
-                int bestIndex = picker->currentIndex;
-                for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
-                    if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
-                        bestIndex = i;
-                    }
-                }
+            // Selects the next best scored move
+            while (picker->currentIndex < picker->moveList.count) {
+                // Find the next best move in the list
+                int bestIndex = bestMoveIndex(picker);
+                Move bestMove = picker->moveList.list[bestIndex];
 
-                // Swap best move with currentIndex
-                if (bestIndex != picker->currentIndex) {
-                    int tmpScore = picker->moveScores[picker->currentIndex];
-                    picker->moveScores[picker->currentIndex] = picker->moveScores[bestIndex];
-                    picker->moveScores[bestIndex] = tmpScore;
+                // Swap the out of the unsorted portion
+                swapMoves(picker, bestIndex, picker->currentIndex);
+                picker->currentIndex++;
 
-                    Move tmp = picker->moveList.list[picker->currentIndex];
-                    picker->moveList.list[picker->currentIndex] = picker->moveList.list[bestIndex];
-                    picker->moveList.list[bestIndex] = tmp;
-                }
+                // Skip hash move
+                if (bestMove == picker->hashMove)
+                    continue;
 
-                // Don't return the hash move again
-                if (picker->moveList.list[picker->currentIndex] == picker->hashMove) {
-                    picker->currentIndex++;
-                    return pickMove(picker, board);
-                }
-
-                // Return next best move
-                return picker->moveList.list[picker->currentIndex++];
-            } else {
-                picker->stage = STAGE_DONE;
-                return NO_MOVE;
+                return bestMove;
             }
-        
+            
+            picker->stage = STAGE_DONE;
         case STAGE_DONE:
             return NO_MOVE;
     }

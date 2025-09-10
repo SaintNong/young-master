@@ -168,30 +168,34 @@ static inline void generateKingMoves(MoveList *moves, Board *board) {
     if (board->side == WHITE) {
         // White's Kingside Castling
         if (board->castlePerm & CASTLE_WK) {
-            if ((board->colors[BOTH] & CASTLE_MASK_WK) == 0ull) {
-                if (!isSquareAttacked(board, WHITE, F1) && !isSquareAttacked(board, WHITE, G1))
+            if ((board->colors[BOTH] & CASTLE_MASK_WK) == 0ULL) {
+                if (!isSquareAttacked(board, WHITE, F1)
+                 && !isSquareAttacked(board, WHITE, G1))
                     addCastleMove(moves, E1, G1);
             }
         }
         // White's Queenside Castling
         if (board->castlePerm & CASTLE_WQ) {
-            if ((board->colors[BOTH] & CASTLE_MASK_WQ) == 0ull) {
-                if (!isSquareAttacked(board, WHITE, D1) && !isSquareAttacked(board, WHITE, C1))
+            if ((board->colors[BOTH] & CASTLE_MASK_WQ) == 0ULL) {
+                if (!isSquareAttacked(board, WHITE, D1)
+                 && !isSquareAttacked(board, WHITE, C1))
                     addCastleMove(moves, E1, C1);
             }
         }
     } else {
         // Black's Kingside Castling
         if (board->castlePerm & CASTLE_BK) {
-            if ((board->colors[BOTH] & CASTLE_MASK_BK) == 0ull) {
-                if (!isSquareAttacked(board, BLACK, F8) && !isSquareAttacked(board, BLACK, G8))
+            if ((board->colors[BOTH] & CASTLE_MASK_BK) == 0ULL) {
+                if (!isSquareAttacked(board, BLACK, F8)
+                 && !isSquareAttacked(board, BLACK, G8))
                     addCastleMove(moves, E8, G8);
             }
         }
         // Black's Queenside Castling
         if (board->castlePerm & CASTLE_BQ) {
-            if ((board->colors[BOTH] & CASTLE_MASK_BQ) == 0ull) {
-                if (!isSquareAttacked(board, BLACK, D8) && !isSquareAttacked(board, BLACK, C8))
+            if ((board->colors[BOTH] & CASTLE_MASK_BQ) == 0ULL) {
+                if (!isSquareAttacked(board, BLACK, D8)
+                 && !isSquareAttacked(board, BLACK, C8))
                     addCastleMove(moves, E8, C8);
             }
         }
