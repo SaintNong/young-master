@@ -103,7 +103,7 @@ bool fileRankInBoard(int file, int rank);
 void squareToString(int square, char *coords);
 int stringToSquare(char *string);
 
-// Board functions
+/* Board Functions */
 // Mutations
 void setPiece(Board *board, int color, int piece, int sq);
 void clearPiece(Board *board, int color, int sq);
@@ -117,7 +117,7 @@ void clearBoard(Board *board);
 int boardIsInCheck(Board *board);
 
 // Information
-bool isDraw(Board *board);
+bool isDraw(Board *board, int ply);
 bool nullMoveIsBad(Board *board);
 
 // Board IO

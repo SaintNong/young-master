@@ -86,7 +86,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     }
 
     // Check if this node is a draw before searching further.
-    if (isDraw(board)) {
+    if (isDraw(board, ply)) {
         return drawScore(engine->searchStats.nodes);
     }
 
@@ -255,8 +255,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
     // Check if this node is a draw before searching it.
     if (!rootNode) {
-        if (isDraw(board)) {
-            pv->length = 0;
+        if (isDraw(board, ply)) {
             return drawScore(engine->searchStats.nodes);
         }
     }

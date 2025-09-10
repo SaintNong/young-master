@@ -213,8 +213,54 @@ bool nullMoveIsBad(Board *board) {
     return (us & (kings | pawns)) == us;
 }
 
+// Detects if board has insufficient material to mate
+bool insufficientMaterial(Board *board) {
+    // KvK, KvN, KvNN, KvB.
+    return !(board->pieces[PAWN] | board->pieces[ROOK] | board->pieces[QUEEN])
+        && (!multipleBits(board->colors[WHITE]) || !multipleBits(board->colors[BLACK]))
+        && (!multipleBits(board->pieces[KNIGHT] | board->pieces[BISHOP])
+        || (!board->pieces[BISHOP] && popCount(board->pieces[KNIGHT]) <= 2));
+}
+
+// Checks if the position is a draw by three-fold repetition
+bool isRepetition(Board *board, int ply) {
+    // Index in history where current search root is located.
+    int rootIndex = board->hisPly - ply;
+
+    /**
+     * Go backwards in history, twice at a time to only check positions from our
+     * side to move. We tally up positions where the hash matches ours.
+     */
+    int repetitions = 0;
+    for (int i = board->hisPly - 2; i >= 0; i -= 2) {
+        // Repetitions can't ever happen before an irreversible move was made.
+        if (i < board->hisPly - board->fiftyMove) break;
+
+        // Check matching hash
+        if (board->history[i].hash == board->hash) {
+            // Count the repetition
+            repetitions++;
+
+            /**
+             * If the repetition occurred after the root node, then the current
+             * player (us) is forcing a draw.
+             */
+            if (i > rootIndex) return true;
+
+            /**
+             * Otherwise, if full three fold repetition occurs in-part before
+             * the root node then that is a draw too.
+             */
+            if (repetitions >= 2) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 // Detects draws on the board
-bool isDraw(Board *board) {
+bool isDraw(Board *board, int ply) {
     /**
      * There are 3 types of draws:
      * 1. Fifty move
@@ -227,18 +273,10 @@ bool isDraw(Board *board) {
         return true;
 
     // Type 2. Three fold
-    // Detected by going through the board history looking for duplicate hash
-    for (int i = board->hisPly - board->fiftyMove; i < board->hisPly - 1; i++) {
-        assert(i >= 0 && i < MAX_MOVES);
-
-        if (board->hash == board->history[i].hash) {
-            return true;
-        }
-    }
+    if (isRepetition(board, ply)) return true;
 
     // Type 3. Insufficient material
-    // I will do later
-    // TODO: insufficient material detection
+    if (insufficientMaterial(board)) return true;
 
     return false;
 }
