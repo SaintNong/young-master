@@ -156,27 +156,24 @@ void clearBoard(Board *board) {
 /*                              Board Information                             */
 /* -------------------------------------------------------------------------- */
 
-// Returns true if certain square is attacked
+// Returns true if a certain square is attacked
 int isSquareAttacked(Board *board, int color, int square) {
     int enemy = !color;
     U64 occ = board->colors[BOTH];
 
     U64 enemyPawns = board->colors[enemy] & board->pieces[PAWN];
     U64 enemyKnights = board->colors[enemy] & board->pieces[KNIGHT];
-    U64 enemyBishops =board->colors[enemy] & (
-        board->pieces[BISHOP] | board->pieces[QUEEN]
-    );
+    U64 enemyBishops = board->colors[enemy] & (
+        board->pieces[BISHOP] | board->pieces[QUEEN]);
     U64 enemyRooks = board->colors[enemy] & (
-        board->pieces[ROOK] | board->pieces[QUEEN]
-    );
+        board->pieces[ROOK] | board->pieces[QUEEN]);
     U64 enemyKings = board->colors[enemy] & board->pieces[KING];
 
-    return
-        (pawnAttacks(color, square) & enemyPawns) ||
-        (knightAttacks(square) & enemyKnights) ||
-        (enemyBishops && (Bmagic(square, occ) & enemyBishops)) ||
-        (enemyRooks && (Rmagic(square, occ) & enemyRooks)) ||
-        (kingAttacks(square) & enemyKings);
+    return (pawnAttacks(color, square) & enemyPawns)
+        || (knightAttacks(square) & enemyKnights)
+        || (enemyBishops && (Bmagic(square, occ) & enemyBishops))
+        || (enemyRooks && (Rmagic(square, occ) & enemyRooks))
+        || (kingAttacks(square) & enemyKings);
 }
 
 // Returns true if the current side to move is in check.
@@ -190,13 +187,12 @@ int boardIsInCheck(Board *board) {
 
 // All attackers of a certain square
 U64 allAttackersToSquare(Board *board, U64 occupied, int sq) {
-    return 
-        (pawnAttacks(WHITE, sq) & board->colors[BLACK] & board->pieces[PAWN]) |
-        (pawnAttacks(BLACK, sq) & board->colors[WHITE] & board->pieces[PAWN]) |
-        (knightAttacks(sq) & board->pieces[KNIGHT]) |
-        (Bmagic(sq, occupied) & (board->pieces[BISHOP] | board->pieces[QUEEN])) |
-        (Rmagic(sq, occupied) & (board->pieces[ROOK] | board->pieces[QUEEN])) |
-        (kingAttacks(sq) & board->pieces[KING]);
+    return (pawnAttacks(WHITE, sq) & board->colors[BLACK] & board->pieces[PAWN])
+        |  (pawnAttacks(BLACK, sq) & board->colors[WHITE] & board->pieces[PAWN])
+        |  (knightAttacks(sq) & board->pieces[KNIGHT])
+        |  (Bmagic(sq, occupied) & (board->pieces[BISHOP] | board->pieces[QUEEN]))
+        |  (Rmagic(sq, occupied) & (board->pieces[ROOK] | board->pieces[QUEEN]))
+        |  (kingAttacks(sq) & board->pieces[KING]);
 }
 
 // Wrapper for allAttackersToSquare() for use in double check detection
@@ -204,7 +200,7 @@ U64 attackersToKingSquare(Board *board) {
     int kingsq = getlsb(board->colors[board->side] & board->pieces[KING]);
     U64 occupied = board->colors[BOTH];
     return allAttackersToSquare(board, occupied, kingsq) &
-         board->colors[!board->side];
+        board->colors[!board->side];
 }
 
 // Check if zugzwang is unlikely in the current position.
@@ -253,7 +249,7 @@ bool isDraw(Board *board) {
 
 // Displays the given board on the terminal
 void printBoard(Board *board) {
-    char asciiPieces[12] = "PNBRQKpnbrqk";
+    const char asciiPieces[12] = "PNBRQKpnbrqk";
     int sq;
     int isEmpty;
 
@@ -361,7 +357,7 @@ void parseFen(Board *board, char *fen) {
                     break;
                 default:
                     printf("FEN parsing error while placing pieces\n");
-                    exit(1);
+                    exit(EXIT_FAILURE);
                     break;
                 }
 
@@ -380,7 +376,7 @@ void parseFen(Board *board, char *fen) {
         board->side = BLACK;
     } else {
         puts("FEN parsing error while setting side to move");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     fen++;
     fen++;
@@ -405,7 +401,7 @@ void parseFen(Board *board, char *fen) {
             break;
         default:
             puts("FEN parsing error in castling rights");
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         }
         fen++;
