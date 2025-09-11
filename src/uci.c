@@ -260,6 +260,8 @@ void uciLoop() {
     // Use unbuffered I/O
     setbuf(stdin, NULL);
     setbuf(stdout, NULL);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stdin, NULL, _IONBF, 0);
 
     // Initialise the engine data
     Engine engine;

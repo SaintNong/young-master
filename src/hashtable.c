@@ -123,3 +123,20 @@ int hashTableProbe(U64 hash, int ply, Move *hashMove, int *depth, int *score, in
 
     return PROBE_FAIL;
 }
+
+/**
+ * Probes hash table for just the best move and score
+ */
+Move probeHashMove(U64 hash, int *score) {
+    // Calculate hash index and retrieve corresponding entry
+    int index = hash % hashTable.count;
+    HashEntry *entry = &hashTable.entries[index];
+
+    if (entry->hashKey == hash) {
+        // Return the move if the entry exists
+        *score = fromHashScore(entry->score, 0);
+        return entry->bestMove;
+    }
+
+    return NO_MOVE;
+}

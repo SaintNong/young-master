@@ -14,6 +14,10 @@
 #include "uci.h"
 #include "utils.h"
 
+/* -------------------------------------------------------------------------- */
+/*                               Search Helpers                               */
+/* -------------------------------------------------------------------------- */
+
 // Late move reduction table.
 // int reduction = LMR_TABLE[depth][movesPlayed];
 int LMR_TABLE[MAX_DEPTH][MAX_LEGAL_MOVES];
@@ -35,34 +39,55 @@ void initLMRTable() {
     }
 }
 
-// Some random variation to draw scores help avoid blindness to three-fold lines.
+/**
+ * Some random variation to let the engine explore positions with many draws
+ * more efficiently.
+ * Inspired by:
+ * https://github.com/official-stockfish/Stockfish/commit/97d2cc9a9c1c4b6ff1b470676fa18c7fc6509886
+ */
 int drawScore(U64 nodes) {
     return 3 - (nodes & 0x3);
 }
 
 // Check if search is over, or user typed stop
-// TODO: handle user stop
 static int checkSearchOver(Engine *engine) {
     SearchLimits *limits = &engine->limits;
 
     if (limits->searchType == LIMIT_INFINITE) {
-        return false;
+        // In infinite search, only user stop can end it.
+        if (checkUserStop()) {
+            engine->searchState = SEARCH_STOPPED;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     if (limits->searchType == LIMIT_TIME) {
+        // Check whether time is up if we're in a time limited search.
         if (getTime() >= limits->searchStopTime) {
             engine->searchState = SEARCH_STOPPED;
             return true;
         }
     } else if (limits->searchType == LIMIT_NODES) {
+        // Check whether we passed the node limit in node limited search.
         if (engine->searchStats.nodes >= limits->nodes) {
             engine->searchState = SEARCH_STOPPED;
             return true;
         }
     }
 
-    return false;
+    if (checkUserStop()) {
+        engine->searchState = SEARCH_STOPPED;
+        return true;
+    } else {
+        return false;
+    }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                   Search                                   */
+/* -------------------------------------------------------------------------- */
 
 // Searches until the position is non tactical to get a more accurate evaluation.
 static int quiesce(Engine *engine, int alpha, int beta, int ply) {
@@ -73,12 +98,12 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
 
     // Search stopping/time management:
     // Periodically check if the search should be stopped.
-    if ((engine->searchStats.nodes & 0x3FF) == 0) {
+    if ((engine->searchStats.nodes & 0xFFF) == 0) {
         checkSearchOver(engine);
     }
 
     // Return up the tree if the search was stopped.
-    if (engine->searchState == SEARCH_STOPPED) return 0;
+    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
     // Don't search if we're at our max depth to avoid memory corruption.
     if (ply >= MAX_DEPTH - 1) {
@@ -162,7 +187,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
         undoMove(board, move);
 
         // If the search is stopped we want to return as soon as possible.
-        if (engine->searchState == SEARCH_STOPPED) return 0;
+        if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
         // Score beat our best score.
         if (score > bestScore) {
@@ -217,16 +242,43 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
     // Search stopping/time management:
     // Periodically check if the search should be stopped.
-    if ((engine->searchStats.nodes & 0x3FF) == 0) {
+    if ((engine->searchStats.nodes & 0xFFF) == 0) {
         checkSearchOver(engine);
     }
 
     // Return up the tree if the search was stopped.
-    if (engine->searchState == SEARCH_STOPPED) return 0;
+    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
     
     // Don't search if we're at our max depth to avoid memory corruption.
     if (ply >= MAX_DEPTH - 1) {
         return evaluate(board);
+    }
+
+    /**
+     * Look for early exit conditions. We don't take early exit conditions in
+     * the root node since that erases our best move.
+     */
+    if (!rootNode) {
+        /**
+         * Draw detection. Detects if the board is a draw by 50 move rule,
+         * three-fold repetition, or insufficient mating material.
+         */
+        if (isDraw(board, ply)) {
+            return drawScore(engine->searchStats.nodes);
+        }
+
+        /**
+         * Mate distance pruning. In positions with a mate we prune lines which
+         * cannot possibly be better than this mate. This doesn't add elo but
+         * makes the engine much better at mate finding.
+         * https://www.chessprogramming.org/Mate_Distance_Pruning
+         */
+        if (alpha < -MATE_SCORE + ply)
+            alpha = -MATE_SCORE + ply;
+        if (beta > MATE_SCORE - ply - 1)
+            beta = MATE_SCORE - ply - 1;
+
+        if (alpha >= beta) return alpha;
     }
 
     /**
@@ -239,15 +291,12 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      */
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
-    if (!rootNode) {
-        if (hashTableProbe(
-            board->hash,
-            ply,
-            &hashMove,
-            &hashDepth,
-            &hashScore,
-            &hashFlag
-        ) == PROBE_SUCCESS) {
+    if (hashTableProbe(board->hash, ply, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+        /**
+         * Do not cutoff at root node since we need a best move. We still grab
+         * hash move on root node to speed up move ordering though.
+         */
+        if (!rootNode) {
             /**
              * The table returned a score of equal or greater accuracy (depth).
              * We don't return immediately in PV nodes to protect the our PV from
@@ -264,13 +313,6 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                     return hashScore;
                 }
             }
-        }
-    }
-
-    // Check if this node is a draw before searching it.
-    if (!rootNode) {
-        if (isDraw(board, ply)) {
-            return drawScore(engine->searchStats.nodes);
         }
     }
 
@@ -387,7 +429,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         undoMove(board, move);
 
         // Checking if search was stopped during move loop to return faster.
-        if (engine->searchState == SEARCH_STOPPED) return 0;
+        if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
         // A new best move was found!
         if (score > bestScore) {
@@ -496,11 +538,12 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
         printMove(pv->moves[i], false);
         printf(" ");
     }
+
     printf("\n");
     fflush(stdout);
 }
 
-// Iterative deepening:
+// Iterative deepening loop
 // https://www.chessprogramming.org/Iterative_Deepening
 Move iterativeDeepening(Engine *engine) {
     SearchLimits *limits = &engine->limits;
@@ -508,14 +551,14 @@ Move iterativeDeepening(Engine *engine) {
 
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
+        // Run a search at this depth
         int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0);
 
-        if (engine->searchState == SEARCH_STOPPED) {
+        // Exit before updating if we're out of time
+        if (engine->searchState == SEARCH_STOPPED)
             break;
-        }
 
         bestMove = engine->pv.moves[0];
-
         printSearchInfo(depth, score, engine);
     }
 

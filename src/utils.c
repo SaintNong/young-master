@@ -1,13 +1,8 @@
 #include "utils.h"
-#include "bitboards.h"
-
-#include <sys/time.h>
-#include <stdlib.h>
-#include <stdint.h>
 
 // Returns time since epoch in milliseconds
 int getTime() {
-#ifdef WIN32
+#if defined(_WIN32) || defined(_WIN64)
     return GetTickCount();
 #else
     struct timeval t;
@@ -26,4 +21,76 @@ U64 randomU64() {
     seed ^= seed >> 27;
 
     return seed * 0x2545F4914F6CDD1DULL;
+}
+
+// Cross-platform function to check for user input
+int pollUserInput() {
+#if defined(_WIN32) || defined(_WIN64)
+    /**
+     * Thank you to the Code Monkey King, who used this code in BBC. He took it
+     * from VICE by Richard Allbert, who grabbed it from somewhere else...
+     * https://github.com/maksimKorzh/bbc/blob/master/src/bbc_nnue/bbc.c#L352
+     */
+
+    static int init = 0, pipe;
+    static HANDLE inh;
+    DWORD dw;
+
+    if (!init)
+    {
+        init = 1;
+        inh = GetStdHandle(STD_INPUT_HANDLE);
+        pipe = !GetConsoleMode(inh, &dw);
+        if (!pipe)
+        {
+            SetConsoleMode(inh, dw & ~(ENABLE_MOUSE_INPUT|ENABLE_WINDOW_INPUT));
+            FlushConsoleInputBuffer(inh);
+        }
+    }
+    
+    if (pipe)
+    {
+        if (!PeekNamedPipe(inh, NULL, 0, NULL, &dw, NULL)) return 1;
+        return dw;
+    }
+    
+    else
+    {
+        GetNumberOfConsoleInputEvents(inh, &dw);
+        return dw <= 1 ? 0 : dw;
+    }
+#else
+    // https://talkchess.com/viewtopic.php?t=39870
+    // Thank you to lucasart!
+    fd_set readfds;
+	struct timeval timeout;
+
+	FD_ZERO(&readfds);
+	FD_SET(0, &readfds);	// fd 0 is always stdin
+	timeout.tv_sec = timeout.tv_usec = 0;
+	
+	select(1, &readfds, 0, 0, &timeout);
+	return (FD_ISSET(0, &readfds));
+#endif
+}
+
+// Check if user entered "stop" command
+int checkUserStop() {
+    if (!pollUserInput()) {
+        return false;
+    }
+
+    char input[LINE_WIDTH];
+
+    // Read the available input
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        // Remove newline characters
+        input[strcspn(input, "\r\n")] = '\0';
+        
+        if (strcmp(input, "stop") == 0) {
+            return true;
+        }
+    }
+    
+    return false;
 }

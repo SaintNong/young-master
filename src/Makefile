@@ -1,5 +1,5 @@
 SRC = $(wildcard *.c)
-FLAGS = -Wall -O3 -flto -march=native -ffast-math
+FLAGS = -Wall -O3 -flto -march=native -ffast-math -std=c11
 LIBS = -lm
 NO_DEBUG = -D'NDEBUG=1'
 

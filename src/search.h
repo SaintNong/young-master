@@ -14,6 +14,9 @@
 // Search limits
 #define MAX_DEPTH 100
 
+// Score to return when search is stopped
+#define SEARCH_STOPPED_SCORE -200000
+
 
 // Search functions
 Move iterativeDeepening(Engine *engine);
