@@ -27,7 +27,7 @@ void initLMRTable() {
     for (int depth = 1; depth < MAX_DEPTH; depth++) {
         for (int movesPlayed = 1; movesPlayed < MAX_LEGAL_MOVES; movesPlayed++) {
             // Eyeballed
-            int reduction = 0.10 + log(depth) * log(movesPlayed) / 4.0;
+            int reduction = 0.25 + log(depth) * log(movesPlayed) / 3;
             if (reduction < 0)
                 reduction = 0;
                 
@@ -221,7 +221,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
 }
 
 // Principal variation search, with fail-soft alpha beta.
-static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply) {
+static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply, bool cutNode) {
     Board *board = &engine->board;
     PV childPV;
 
@@ -345,13 +345,13 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         && board->history[board->hisPly-1].move != NO_MOVE
     ) {
         // Calculate reduced depth.
-        int reduction = 4 + depth / 3;
+        int reduction = 4 + depth / 4;
         int nullDepth = depth - reduction;
         if (nullDepth < 0) nullDepth = 0;
 
         // Make the null move.
         makeNullMove(board);
-        int score = -search(engine, &childPV, -beta, -beta + 1, nullDepth, ply + 1);
+        int score = -search(engine, &childPV, -beta, -beta + 1, nullDepth, ply + 1, !cutNode);
         undoNullMove(board);
 
         // If we are still above beta then we prune this branch.
@@ -359,6 +359,16 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             return beta;
         }
     }
+
+    /**
+     * Internal Iterative Reductions (IIR). (+13.2 elo)
+     * Nodes without a hash move are usually less important, so it's likely safe
+     * to reduce them to save time to prioritize more important nodes.
+     * https://www.chessprogramming.org/Internal_Iterative_Reductions
+     */
+    if (!inCheck && depth >= 4 && (pvNode || cutNode) && hashMove == NO_MOVE)
+        depth--;
+
 
     // Since we couldn't get a fast return, therefore must search the position.
     childPV.length = 0;
@@ -394,7 +404,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         int score;
         if (movesPlayed == 1) {
             // Full window search for the first move
-            score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
+            score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1, false);
         } else {
 
             /**
@@ -405,17 +415,24 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
              * to search more important variations deeper.
              * https://www.chessprogramming.org/Late_Move_Reductions
              */
+            bool isKillerMove = (move == picker.killerOne || move == picker.killerTwo);
 
             // Compute depth reduction for LMR
             int reducedDepth = depth - 1;
-            if (IsQuiet(move) && !inCheck) {
-                reducedDepth -= LMR_TABLE[depth][movesPlayed];
+            if (IsQuiet(move) && !inCheck && !isKillerMove) {
+                // Basic move-count based reduction
+                int reduction = LMR_TABLE[depth][movesPlayed];
+
+                // Apply the reduction then clamp
+                reducedDepth -= reduction;
                 if (reducedDepth < 0)
                     reducedDepth = 0;
+                if (reducedDepth > depth - 1)
+                    reducedDepth = depth - 1;
             }
 
             // Null window search for non PV moves.
-            score = -search(engine, &childPV, -alpha - 1, -alpha, reducedDepth, ply + 1);
+            score = -search(engine, &childPV, -alpha - 1, -alpha, reducedDepth, ply + 1, true);
 
             /**
              * If the move failed high, we need to re-search with a full window
@@ -423,7 +440,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
              * its precise value.
              */
             if (score > alpha) {
-                score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1);
+                score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1, !cutNode);
             }
         }
         undoMove(board, move);
@@ -552,7 +569,7 @@ Move iterativeDeepening(Engine *engine) {
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
         // Run a search at this depth
-        int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0);
+        int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0, false);
 
         // Exit before updating if we're out of time
         if (engine->searchState == SEARCH_STOPPED)
