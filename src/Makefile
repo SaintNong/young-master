@@ -1,5 +1,6 @@
 SRC = $(wildcard *.c)
 FLAGS = -Wall -O3 -flto -march=native -ffast-math -std=c11
+SANITIZE_FLAG = -fsanitize=address,leak,undefined
 LIBS = -lm
 NO_DEBUG = -D'NDEBUG=1'
 
@@ -16,6 +17,10 @@ noflags:
 # compiles with asserts
 debug:
 	gcc $(SRC) $(FLAGS) $(LIBS) -o ../$(EXE)
+
+# compiles with gcc sanitization checks
+sanitize:
+	gcc $(SRC) $(FLAGS) $(SANITIZE_FLAG) $(LIBS) -o ../$(EXE)
 
 # compiles with gprof
 profile:

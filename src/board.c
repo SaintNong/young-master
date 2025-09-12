@@ -301,6 +301,8 @@ void printBoard(Board *board) {
             isEmpty = 1;
             for (int piece = PAWN; piece < NB_PIECES; piece++) {
                 if (testBit(board->pieces[piece], sq)) {
+                    assert(board->squares[sq] == piece);
+
                     isEmpty = 0;
                     if (testBit(board->colors[WHITE], sq)) {
                         printf("%c ", asciiPieces[toPiece(piece, WHITE)]);
@@ -309,12 +311,13 @@ void printBoard(Board *board) {
                     } else {
                         puts("board is corrupted\n");
                         return;
-                    }
+                  }
                 }
             }
 
             if (isEmpty) {
                 printf(". ");
+                assert(board->squares[sq] == EMPTY);
             }
         }
         printf("\n");

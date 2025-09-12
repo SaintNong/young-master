@@ -18,12 +18,17 @@
 
 // Initialises all the engine data to a valid initial state
 void initEngine(Engine *engine) {
+    // Setup board
     parseFen(&engine->board, START_FEN);
 
+    // Setup engine state
     memset(&engine->pv, 0, sizeof(PV));
     memset(&engine->limits, 0, sizeof(SearchLimits));
     memset(&engine->searchStats, 0, sizeof(SearchInfo));
     engine->searchState = SEARCH_STOPPED;
+
+    // Setup hash table
+    clearHashTable();
 }
 
 // Converts a string to a move.
@@ -46,8 +51,9 @@ Move stringToMove(char *string, Board *board) {
         flag |= KNIGHT_PROMO_FLAG;
     else if (string[4] == 'b')
         flag |= BISHOP_PROMO_FLAG;
+
     // Capture
-    else if (pieceCaptured != EMPTY)
+    if (pieceCaptured != EMPTY)
         flag |= CAPTURE_FLAG;
 
     // Castling
@@ -65,9 +71,10 @@ Move stringToMove(char *string, Board *board) {
         }
     }
 
-    // En passant
-    if (pieceMoved == PAWN && string[0] != string[2] && pieceCaptured == EMPTY)
+    // En passant, check if pawn moves to epSquare diagonally.
+    if (pieceMoved == PAWN && to == board->epSquare && fileOf(from) != fileOf(to)) {
         flag = EP_FLAG;
+    }
 
     return ConstructMove(from, to, flag);
 }
@@ -98,6 +105,7 @@ void handleUci() {
 // New game command, sent before next search.
 void handleUciNewGame(Engine *engine) {
     parseFen(&engine->board, START_FEN);
+    clearHashTable();
     puts("readyok");
 }
 
@@ -108,14 +116,17 @@ void handlePosition(Engine *engine, char *input) {
     Board *board = &engine->board;
     char *token = strtok(input, " ");
 
+    // Move pointer past position
     if (strcmp(token, "position") == 0) {
         token = strtok(NULL, " ");
     }
 
     if (strcmp(token, "startpos") == 0) {
+        // Parse startpos
         parseFen(board, START_FEN);
         token = strtok(NULL, " "); // to 'moves' or NULL
     } else if (strcmp(token, "fen") == 0) {
+        // Parse fen
         char fen[FEN_BUFFER_SIZE];
         fen[0] = '\0';
         token = strtok(NULL, " "); // to actual FEN part

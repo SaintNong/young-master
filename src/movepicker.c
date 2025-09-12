@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,6 +39,15 @@ int scoreMove(MovePicker *picker, Move move, Board *board) {
         // Capture scoring using MVV-LVA
         int victim = board->squares[MoveTo(move)];
         int attacker = board->squares[MoveFrom(move)];
+
+        // If the target square is empty the move is en passant, so the victim is a pawn.
+        if (victim == EMPTY)
+            victim = PAWN;
+
+        // Validate pieces
+        assert(victim >= PAWN && victim <= KING);
+        assert(attacker >= PAWN && attacker <= KING);
+
         return MVV_LVA[victim][attacker] + CAPTURE_BONUS;
     }
 
