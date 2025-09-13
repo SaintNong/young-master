@@ -27,7 +27,7 @@ void initEngine(Engine *engine) {
     memset(&engine->searchStats, 0, sizeof(SearchInfo));
     engine->searchState = SEARCH_STOPPED;
 
-    // Setup hash table
+    // Clear hash table
     clearHashTable();
 }
 
@@ -97,9 +97,40 @@ int calculateTimeToThink(int timeLeft, int increment, int movesToGo) {
 
 // Identifies our engine, and its options to the GUI
 void handleUci() {
+    // Send Engine info
     printf("id name %s %s\n", NAME, VERSION);
     printf("id author %s\n", AUTHOR);
+
+    // Send available options
+    printf("option name Hash type spin default %d min %d max %d\n", HASH_SIZE_DEFAULT, HASH_SIZE_MIN, HASH_SIZE_MAX);
+    puts("option name Clear Hash type button");
+
     puts("uciok");
+}
+
+// Allows the GUI to configure options in our engine
+void handleSetOption(Engine *engine, char *input) {
+    int hashSizeMB = -1;
+    if (strncmp(input, "setoption name Hash value ", 26) == 0) {
+        // Hash size option
+        sscanf(input, "setoption name Hash value %d", &hashSizeMB);
+
+        // Make sure the hash size is in limits
+        if (hashSizeMB < HASH_SIZE_MIN) {
+            printf("Hash size was too small, defaulting to %d\n", HASH_SIZE_DEFAULT);
+            hashSizeMB = HASH_SIZE_DEFAULT;
+        } else if (hashSizeMB > HASH_SIZE_MAX) {
+            printf("Hash size was too big, defaulting to %d\n", HASH_SIZE_DEFAULT);
+            hashSizeMB = HASH_SIZE_DEFAULT;
+        }
+
+        initHashTable(hashSizeMB);
+
+    } else if (strcmp(input, "setoption name Clear Hash") == 0) {
+        // Hash clear option
+        puts("Hash table cleared.");
+        clearHashTable();
+    }
 }
 
 // New game command, sent before next search.
@@ -308,10 +339,11 @@ void uciLoop() {
         } else if (strcmp(input, "quit") == 0) {
             handleQuit(&engine);
             break;
-        }
+        } else if (strncmp(input, "setoption", 10)) {
+            handleSetOption(&engine, input);
 
         /* Custom commands */
-        else if (strncmp(input, "perft", 5) == 0) {
+        } else if (strncmp(input, "perft", 5) == 0) {
             handlePerft(&engine, input);
         } else if (strcmp(input, "print") == 0) {
             printBoard(&engine.board);

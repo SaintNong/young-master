@@ -3,15 +3,22 @@
 #include "board.h"
 #include "bitboards.h"
 
+// Engine identifiers
 #define NAME "Empyrean"
 #define VERSION "v1.1"
 #define AUTHOR "Ning XZ"
 
+// Input handling constants
+#define OPTION_BUFFER_SIZE 256
 #define FEN_BUFFER_SIZE 256
 #define INPUT_BUFFER_SIZE 8192
 
-#define MAX_PLY 128
+// UCI option limits
+#define HASH_SIZE_MAX 2048
+#define HASH_SIZE_DEFAULT 128
+#define HASH_SIZE_MIN 1
 
+// The exit condition of the search the engine is doing.
 typedef enum {
     LIMIT_DEPTH,
     LIMIT_NODES,
@@ -19,12 +26,14 @@ typedef enum {
     LIMIT_INFINITE
 } SearchType;
 
+// The state the engine search is in
 typedef enum {
     SEARCH_STOPPED,
     SEARCHING
 } SearchState;
 
 // PV line definition
+#define MAX_PLY 128
 typedef struct {
     Move moves[MAX_PLY];
     int length;

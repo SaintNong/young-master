@@ -79,7 +79,7 @@ void initHashTable(int sizeMB) {
     // Check if allocation failed
     if (hashTable.entries == NULL) {
         puts("Hash allocation failed.");
-        puts("Check if you have enough memory");
+        puts("Check if you have enough memory?");
         exit(EXIT_FAILURE);
     }
 

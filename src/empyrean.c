@@ -28,7 +28,7 @@ void initialise() {
     
     // Hash table
     initZobristKeys();
-    initHashTable(128);
+    initHashTable(HASH_SIZE_DEFAULT);
 
     // Search
     initLMRTable();
