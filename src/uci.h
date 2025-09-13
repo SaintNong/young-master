@@ -5,7 +5,7 @@
 
 // Engine identifiers
 #define NAME "Empyrean"
-#define VERSION "v1.1"
+#define VERSION "v1.3"
 #define AUTHOR "Ning XZ"
 
 // Input handling constants

@@ -339,7 +339,7 @@ void uciLoop() {
         } else if (strcmp(input, "quit") == 0) {
             handleQuit(&engine);
             break;
-        } else if (strncmp(input, "setoption", 10)) {
+        } else if (strncmp(input, "setoption", 9) == 0) {
             handleSetOption(&engine, input);
 
         /* Custom commands */

@@ -119,8 +119,8 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
      * Probe our hash table in qsearch.
      * Here's a debate on whether it's correct to use our hash table in qsearch.
      * From my own testing I found a very slight gain by probing/storing in
-     * quiescence, so decided to keep it in, especially since all the top engines
-     * are doing it this way now.
+     * quiescence, so decided to keep it in, especially since all the top
+     * engines are doing it this way now.
      * https://talkchess.com/viewtopic.php?t=47373
      */
     Move hashMove = NO_MOVE;
@@ -415,6 +415,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
              * to search more important variations deeper.
              * https://www.chessprogramming.org/Late_Move_Reductions
              */
+
+            // Do not reduce killers because they are important.
             bool isKillerMove = (move == picker.killerOne || move == picker.killerTwo);
 
             // Compute depth reduction for LMR
@@ -499,7 +501,6 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                     engine->searchStats.fh++;
                     break;
                 }
-
             }
         }
     }

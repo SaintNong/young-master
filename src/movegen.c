@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 
 #include "movegen.h"
@@ -7,6 +6,12 @@
 #include "magicmoves.h"
 #include "makemove.h"
 #include "move.h"
+
+
+/**
+ * TODO: I don't like this file, I should rewrite it.
+ * Also, I should do seperate staged movegen for noisy moves.
+ */
 
 // Adds normal moves, and captures
 static inline void addNormalMoves(MoveList *moves, int fromSq, U64 attacks, Board *board) {

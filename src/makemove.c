@@ -49,7 +49,13 @@ static inline void RemoveBlackQueenCastling(Board *board) {
 /* -------------------------------------------------------------------------- */
 /*                           Board mutation helpers                           */
 /* -------------------------------------------------------------------------- */
-// TODO: probably refactor these functions out somehow because it's quite ugly.
+/**
+ * These functions are carbon copies of the functions in board.c, but without
+ * hash updates since they are unnecessary in undoMove. They make undoMove much
+ * more performant, although at the cost of code duplication.
+ * 
+ * TODO: do something about these ugly functions :/
+ */
 
 // setPiece but without updating the hash
 // for use in undo where hash is reverted from a saved value

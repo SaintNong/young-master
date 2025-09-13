@@ -245,15 +245,15 @@ bool isRepetition(Board *board, int ply) {
              * If the repetition occurred after the root node, then the current
              * player (us) is forcing a draw.
              */
-            if (i > rootIndex) return true;
+            if (i > rootIndex)
+                return true;
 
             /**
              * Otherwise, if full three fold repetition occurs in-part before
              * the root node then that is a draw too.
              */
-            if (repetitions >= 2) {
+            if (repetitions >= 2)
                 return true;
-            }
         }
     }
     return false;
@@ -273,10 +273,12 @@ bool isDraw(Board *board, int ply) {
         return true;
 
     // Type 2. Three fold
-    if (isRepetition(board, ply)) return true;
+    if (isRepetition(board, ply))
+        return true;
 
     // Type 3. Insufficient material
-    if (insufficientMaterial(board)) return true;
+    if (insufficientMaterial(board))
+        return true;
 
     return false;
 }

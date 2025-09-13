@@ -40,6 +40,7 @@ char* moveToString(Move move) {
     return string;
 }
 
+// Prints a move to terminal, optionally with newline.
 void printMove(Move move, bool includeNewLine) {
     char *moveStr = moveToString(move);
     printf("%s", moveStr);

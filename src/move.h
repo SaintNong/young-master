@@ -14,9 +14,11 @@ typedef uint16_t Move;
  *   1111 0000 0000 0000 | Flags                   (4 bits => 16 possible)
  */
 
-// Represents a move that doesn't exist, e.g. unfilled parts of a hash table
+// Represents a move that doesn't exist, e.g. unfilled parts of a hash table,
+// or a null move.
 #define NO_MOVE 0
 
+// Move flags
 #define QUIET_FLAG          0x0
 #define CASTLE_FLAG         0x1
 #define CAPTURE_FLAG        0x4
