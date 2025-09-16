@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -9,6 +10,7 @@
 #include "zobrist.h"
 #include "bitboards.h"
 #include "magicmoves.h"
+#include "utils.h"
 
 /* -------------------------------------------------------------------------- */
 /*                               Square helpers                               */
@@ -293,9 +295,11 @@ void printBoard(Board *board) {
     int sq;
     int isEmpty;
 
+    printf("\n *  a b c d e f g h  *\n\n");
+
     // print pieces
     for (int rank = 7; rank >= 0; rank--) {
-        printf("%d ", rank + 1);
+        printf(" %d ", rank + 1);
 
         for (int file = 0; file < 8; file++) {
             sq = squareFrom(file, rank);
@@ -307,9 +311,9 @@ void printBoard(Board *board) {
 
                     isEmpty = 0;
                     if (testBit(board->colors[WHITE], sq)) {
-                        printf("%c ", asciiPieces[toPiece(piece, WHITE)]);
+                        printf(BLU " %c", asciiPieces[toPiece(piece, WHITE)]);
                     } else if (testBit(board->colors[BLACK], sq)) {
-                        printf("%c ", asciiPieces[toPiece(piece, BLACK)]);
+                        printf(RED " %c", asciiPieces[toPiece(piece, BLACK)]);
                     } else {
                         puts("board is corrupted\n");
                         return;
@@ -318,31 +322,43 @@ void printBoard(Board *board) {
             }
 
             if (isEmpty) {
-                printf(". ");
+                printf("  ");
                 assert(board->squares[sq] == EMPTY);
             }
         }
-        printf("\n");
+        // Rank number
+        printf(CRESET "  %d", rank + 1);
+
+        // print stats next to board
+        if (rank == 7) {
+            printf("    | %s to move", (board->side == WHITE) ? ( BLU "White" CRESET ) : ( RED "Black" CRESET));
+        } else if (rank == 6) {
+            printf("    |");
+        } else if (rank == 5) {
+            printf("    | Castle      %s%s%s %s%s",
+                (board->castlePerm == 0) ? "n/a" : "",
+                (board->castlePerm & CASTLE_WK) ? BLU "K" CRESET : "",
+                (board->castlePerm & CASTLE_WQ) ? BLU "Q" CRESET : "",
+                (board->castlePerm & CASTLE_BK) ? RED "k" CRESET : "",
+                (board->castlePerm & CASTLE_BQ) ? RED "q" CRESET : "");
+        } else if (rank == 4) {
+            char epString[3];
+            if (board->epSquare != NO_SQ) {
+                squareToString(board->epSquare, epString);
+                printf("    | EP square   %s", epString);
+            } else {
+                printf("    | EP square   n/a");
+            }
+        } else if (rank == 3) {
+            printf("    | 50 move     %d", board->fiftyMove);
+        } else if (rank == 2) {
+            printf("    | Hash        " CYN "%" PRIx64 CRESET, board->hash);
+        }
+
+        // Newline
+        puts("");
     }
-    printf("  a b c d e f g h\n");
-
-    // print side to move
-    printf("STM: %s, ", (board->side == WHITE) ? "White" : "Black");
-
-    // print en passant square
-    char epString[3];
-    if (board->epSquare != NO_SQ) {
-        squareToString(board->epSquare, epString);
-        printf("EP square: %s, ", epString);
-    } else {
-        printf("EP square: NO_SQ, ");
-    }
-
-    printf("Castle: %s%s%s%s\n",
-         (board->castlePerm & CASTLE_WK) ? "K" : "",
-         (board->castlePerm & CASTLE_WQ) ? "Q" : "",
-         (board->castlePerm & CASTLE_BK) ? "k" : "",
-         (board->castlePerm & CASTLE_BQ) ? "q" : "");
+    printf("\n *  a b c d e f g h  *\n\n");
 }
 
 // Sets a provided board to the provided FEN

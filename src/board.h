@@ -118,6 +118,7 @@ int boardIsInCheck(Board *board);
 
 // Information
 bool isDraw(Board *board, int ply);
+bool isRepetition(Board *board, int ply);
 bool nullMoveIsBad(Board *board);
 
 // Board IO

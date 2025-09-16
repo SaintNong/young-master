@@ -85,7 +85,7 @@ int checkUserStop() {
     // Read the available input
     if (fgets(input, sizeof(input), stdin) != NULL) {
         // Remove newline characters
-        input[strcspn(input, "\r\n")] = '\0';
+        input[strcspn(input, "\n")] = '\0';
         
         if (strcmp(input, "stop") == 0) {
             return true;
@@ -93,4 +93,23 @@ int checkUserStop() {
     }
     
     return false;
+}
+
+// ANSI colour printing helpers
+void printf_success(const char *format, ...) {
+    va_list args;
+    printf("%s", GRN);
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    printf("%s", CRESET);
+}
+
+void printf_fail(const char *format, ...) {
+    va_list args;
+    printf("%s", RED);
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    printf("%s", CRESET);
 }

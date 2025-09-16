@@ -7,7 +7,6 @@
 #include "makemove.h"
 #include "move.h"
 
-
 /**
  * TODO: I don't like this file, I should rewrite it.
  * Also, I should do seperate staged movegen for noisy moves.
@@ -22,15 +21,6 @@ static inline void addNormalMoves(MoveList *moves, int fromSq, U64 attacks, Boar
             moves->list[moves->count] = ConstructMove(fromSq, toSq, QUIET_FLAG);
         else
             moves->list[moves->count] = ConstructMove(fromSq, toSq, CAPTURE_FLAG);
-        moves->count++;
-    }
-}
-
-static inline void addCaptures(MoveList *moves, int fromSq, U64 captures, Board *board) {
-    int toSq;
-    while (captures) {
-        toSq = poplsb(&captures);
-        moves->list[moves->count] = ConstructMove(fromSq, toSq, CAPTURE_FLAG);
         moves->count++;
     }
 }

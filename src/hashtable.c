@@ -39,7 +39,7 @@ static int fromHashScore(int score, int ply) {
 // Clears every entry of the hash table
 void clearHashTable() {
     // Loop through the hash entries, setting all the values to empty
-    for (int i = 0; i < hashTable.count; i++) {
+    for (U64 i = 0; i < hashTable.count; i++) {
         // Clear entry
         hashTable.entries[i].hashKey = 0ULL;
         hashTable.entries[i].bestMove = NO_MOVE;
@@ -57,7 +57,7 @@ void cleanUpHashTable() {
 // Returns the percentage of hash table occupancy
 double occupiedHashEntries() {
     int occupied = 0;
-    for (int i = 0; i < hashTable.count; i++) {
+    for (U64 i = 0; i < hashTable.count; i++) {
         if (hashTable.entries[i].hashKey != 0ULL)
             occupied++;
     }
@@ -85,8 +85,8 @@ void initHashTable(int sizeMB) {
 
     clearHashTable();
 
-    printf("Hash size set to %d MB\n", sizeMB);
-    printf("Number of hash entries: %lu\n", hashTable.count);
+    printf("info string Hash size: %d MB\n", sizeMB);
+    // printf("Number of hash entries: %lu\n", hashTable.count);
 }
 
 

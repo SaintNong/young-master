@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -224,6 +225,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply, bool cutNode) {
     Board *board = &engine->board;
     PV childPV;
+    childPV.length = 0;
 
     const int rootNode = (ply == 0);
     const int pvNode = (alpha != beta - 1);
@@ -234,6 +236,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * https://www.chessprogramming.org/Quiescence_Search
      */
     if (depth <= 0) {
+        pv->length = 0;
         return quiesce(engine, alpha, beta, ply + 1);
     }
 
@@ -264,6 +267,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
          * three-fold repetition, or insufficient mating material.
          */
         if (isDraw(board, ply)) {
+            pv->length = 0;
             return drawScore(engine->searchStats.nodes);
         }
 
@@ -369,10 +373,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (!inCheck && depth >= 4 && (pvNode || cutNode) && hashMove == NO_MOVE)
         depth--;
 
-
     // Since we couldn't get a fast return, therefore must search the position.
-    childPV.length = 0;
-    
     int bestScore = -INFINITE;
     int movesPlayed = 0;
 
@@ -464,6 +465,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                  * If alpha was beaten in a PV node, our principal variation
                  * needs to be updated with the new best line.
                  * My implementation uses Bruce Moreland's Method of tracking PV.
+                 * https://web.archive.org/web/20040620092229/http://www.brucemo.com/compchess/programming/pv.htm
                  * https://www.chessprogramming.org/Principal_Variation
                  */
                 if (pvNode) {
@@ -543,7 +545,7 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
     }
 
     // Print nodes searched
-    printf("nodes %d ", engine->searchStats.nodes);
+    printf("nodes %" PRIu64 " ", engine->searchStats.nodes);
 
     // Print time taken
     int timeTaken = getTime() - engine->searchStats.searchStartTime;
@@ -595,8 +597,9 @@ void initSearch(Engine *engine, SearchLimits limits) {
     engine->searchStats.fhf = 0;
     engine->searchStats.searchStartTime = getTime();
 
-    // Set engine state
+    // Set engine state and search limits
     engine->searchState = SEARCHING;
+    engine->limits = limits;
 
     // Clear move ordering heuristics
     clearMoveHistory();

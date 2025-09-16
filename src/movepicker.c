@@ -168,7 +168,7 @@ Move pickMove(MovePicker *picker, Board *board) {
                 return picker->hashMove;
             }
 
-            // Fall through to generate stage
+            // fall through
         case STAGE_GENERATE:
             // Generate moves after hash move
             generatePseudoLegalMoves(&picker->moveList, board);
@@ -181,7 +181,7 @@ Move pickMove(MovePicker *picker, Board *board) {
             
             picker->stage = STAGE_MAIN;
 
-            // Fall through to main stage
+            // fall through
         case STAGE_MAIN:
             // Selects the next best scored move
             while (picker->currentIndex < picker->moveList.count) {
@@ -201,6 +201,7 @@ Move pickMove(MovePicker *picker, Board *board) {
             }
             
             picker->stage = STAGE_DONE;
+            // fall through
         case STAGE_DONE:
             return NO_MOVE;
     }

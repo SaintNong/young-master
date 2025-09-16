@@ -109,7 +109,7 @@ void handleUci() {
 }
 
 // Allows the GUI to configure options in our engine
-void handleSetOption(Engine *engine, char *input) {
+void handleSetOption(char *input) {
     int hashSizeMB = -1;
     if (strncmp(input, "setoption name Hash value ", 26) == 0) {
         // Hash size option
@@ -260,7 +260,6 @@ void handleGo(Engine *engine, char *input) {
 
     // Start the search within the given limits
     initSearch(engine, limits);
-    engine->limits = limits;
     Move bestMove = iterativeDeepening(engine);
 
     printf("bestmove %s\n", moveToString(bestMove));
@@ -271,7 +270,7 @@ void handleGo(Engine *engine, char *input) {
 }
 
 // Clean up before exiting
-void handleQuit(Engine *engine) {
+void handleQuit() {
     // Free hash table
     cleanUpHashTable();
 }
@@ -288,7 +287,7 @@ void handlePerft(Engine *engine, char *input) {
     } else {
         // Runs perft, and statistics like speed and time taken.
         sscanf(input, "perft %d", &depth);
-        bench(&engine->board, depth);
+        perftBench(&engine->board, depth);
     }
 }
 
@@ -337,14 +336,16 @@ void uciLoop() {
             handleGo(&engine, input);
 
         } else if (strcmp(input, "quit") == 0) {
-            handleQuit(&engine);
+            handleQuit();
             break;
         } else if (strncmp(input, "setoption", 9) == 0) {
-            handleSetOption(&engine, input);
+            handleSetOption(input);
 
         /* Custom commands */
         } else if (strncmp(input, "perft", 5) == 0) {
             handlePerft(&engine, input);
+        } else if (strcmp(input, "bench") == 0) {
+            bench();
         } else if (strcmp(input, "print") == 0) {
             printBoard(&engine.board);
         } else if (strcmp(input, "eval") == 0) {

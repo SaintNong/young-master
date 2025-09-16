@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #if defined(_WIN32) || defined(_WIN64)
     #include <windows.h>
@@ -15,7 +16,24 @@
     #include <sys/time.h>
 #endif
 
+// Width of line of user input for 'stop' while searching
 #define LINE_WIDTH 16
+
+/**
+ * ANSI Colour Codes from:
+ * https://gist.github.com/RabaDabaDoba/145049536f815903c79944599c6f952a
+ */
+#define BLK "\e[0;30m"
+#define RED "\e[0;31m"
+#define GRN "\e[0;32m"
+#define YEL "\e[0;33m"
+#define BLU "\e[0;34m"
+#define MAG "\e[0;35m"
+#define CYN "\e[0;36m"
+#define WHT "\e[0;37m"
+
+
+#define CRESET "\e[0m"
 
 // Gets the amount of milliseconds since the unix epoch.
 int getTime();
@@ -24,4 +42,8 @@ int getTime();
 U64 randomU64();
 
 // Checks if user typed 'stop' since last poll
-int checkUserStop(void);
+int checkUserStop();
+
+// ANSI colour printing helper functions
+void printf_success(const char *format, ...);
+void printf_fail(const char *format, ...);

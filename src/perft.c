@@ -11,7 +11,7 @@
 #include "movegen.h"
 #include "utils.h"
 
-// Perft function - counts nodes in position to a certain depth
+// Simple perft function - counts nodes in position to a certain depth
 U64 perft(Board *board, int depth) {
     // leaf node reached
     if (depth == 0)
@@ -72,23 +72,72 @@ int perftDivide(Board *board, int depth) {
 }
 
 // Benchmarks perft on a position
-void bench(Board *board, int depth) {
+void perftBench(Board *board, int depth) {
     printf("Starting perft at depth %d\n", depth);
 
     // Setup timer
-    int startTime = getTime();
+    int start = getTime();
 
     // Do perft
     U64 nodes = perft(board, depth);
-    int msElapsed = getTime() - startTime;
+    int elapsed = getTime() - start;
 
     // Print stats
     printf("Nodes found: %" PRIu64 "\n", nodes);
 
-    printf("Time elapsed (ms): %d\n", msElapsed);
+    printf("Time elapsed (ms): %d\n", elapsed);
 
     // Calculate meganodes per second
-    double nodesPerSecond =
-            (double)nodes / ((double)msElapsed / 1000.0) / 1000000.0;
-    printf("Meganodes per second: %.2lf\n", nodesPerSecond);
+    double mnps = (double)nodes / ((double)elapsed / 1000.0) / 1000000.0;
+    printf("Meganodes per second: %.2lf\n", mnps);
+}
+
+// Runs a perft benchmark on a bunch of positions
+void bench() {
+    Board board;
+
+    int totalTime = 0;
+    U64 totalNodes = 0;
+    int totalPassed = 0;
+
+    // Test each position
+    printf("========== Perft Benchmark (%d positions) ==========\n", PERFT_POSITION_COUNT);
+    for (int i = 0; i < PERFT_POSITION_COUNT; i++) {
+        const PerftEntry test = PERFT_TESTS[i];
+        parseFen(&board, test.fen);
+
+        // Run perft and time it
+        int start = getTime();
+        U64 nodes = perft(&board, test.depth);
+        int elapsed = getTime() - start;
+
+        totalTime += elapsed;
+        totalNodes += nodes;
+        
+        // Verify node count
+        printf("Position %d - ", i + 1);
+        if (nodes != test.nodes) {
+            printf_fail("FAILED\n");
+            printf("FEN: %s\n", test.fen);
+            printf("Depth: %d\n", test.depth);
+            printf("Expected nodes: %" PRIu64 "\n", test.nodes);
+            printf("Actual nodes: %" PRIu64 "\n", nodes);
+        } else {
+            printf_success("PASS\n");
+            totalPassed++;
+        }
+    }
+
+    // Print summary
+    puts("========== Benchmark Results ==========");
+    printf("Tests passed: ");
+    if (totalPassed == PERFT_POSITION_COUNT)
+        printf_success("%d / %d\n", totalPassed, PERFT_POSITION_COUNT);
+    else
+        printf_fail("%d / %d\n", totalPassed, PERFT_POSITION_COUNT);
+
+    printf(" Total nodes: %" PRIu64 "\n", totalNodes);
+    printf("  Time taken: %-6d ms\n", totalTime);
+    printf("       Speed: %-6.2f Meganodes/s\n", 
+           (double)totalNodes / ((double)totalTime / 1000.0) / 1000000.0);
 }

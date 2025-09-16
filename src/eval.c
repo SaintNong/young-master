@@ -267,7 +267,7 @@ void printEvaluation(Board *board) {
     int phase = getGamePhase(board);
 
     // Array of all evaluation functions
-    int (*evalFunction[NB_PIECES])() = {
+    int (*evalFunction[NB_PIECES])(Board *, int) = {
         evaluatePawns,
         evaluateKnights,
         evaluateBishops,
@@ -279,7 +279,7 @@ void printEvaluation(Board *board) {
     // Get evaluation scores for each piece on each side
     // evaluations[piece][side];
     EvalResult evals[NB_PIECES][2];
-    int whiteTotal, blackTotal = 0;
+    int whiteTotal = 0, blackTotal = 0;
     for (int piece = PAWN; piece <= KING; piece++) {
         // Get white and black evaluations for this piece
         int whiteEval = evalFunction[piece](board, WHITE);

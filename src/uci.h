@@ -4,9 +4,19 @@
 #include "bitboards.h"
 
 // Engine identifiers
-#define NAME "Empyrean"
-#define VERSION "v1.3"
+#define NAME "Young Master"
+#define VERSION_NUM "v1.0"
 #define AUTHOR "Ning XZ"
+
+#ifndef GIT_HASH
+#define VERSION VERSION_NUM
+#else
+#define VERSION VERSION_NUM "-" GIT_HASH
+#endif
+
+#ifndef COMPILE_TIME
+#define COMPILE_TIME "unknown date"
+#endif
 
 // Input handling constants
 #define OPTION_BUFFER_SIZE 256
@@ -49,7 +59,7 @@ typedef struct {
 
 // Search information collected during a search
 typedef struct {
-    int nodes;                // Number of nodes searched
+    U64 nodes;                // Number of nodes searched
     int fh;                   // Number of fail highs
     int fhf;                  // Number of fail high first
     int searchStartTime;      // Time when the search started
