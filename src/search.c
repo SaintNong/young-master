@@ -334,6 +334,24 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (inCheck) depth++;
 
     /**
+     * Reverse futility pruning (aka Static Null Move Pruning). (+78.41 elo +/- 19.05)
+     * If the static evaluation is in fail-high territory while we're near the
+     * horizon, we can assume that this node is likely to fail high and return
+     * the evaluation directly.
+     * https://www.chessprogramming.org/Reverse_Futility_Pruning
+     */
+    if (
+        !pvNode &&
+        !inCheck &&
+        depth <= 6
+    ) {
+        int score = eval - 150 * depth;
+        if (score >= beta) {
+            return score;
+        }
+    }
+
+    /**
      * Null move pruning.
      * If our position is so strong that giving our opponent two moves in a row
      * still allows us to stay above beta, then this position will likely end
