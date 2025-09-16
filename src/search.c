@@ -492,7 +492,20 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                      * https://www.chessprogramming.org/Move_Ordering
                      */
                     if (!IsCapture(move)) {
-                        updateMoveHistory(board, board->side, move, depth);
+                        // Apply a history bonus to this move.
+                        updateMoveHistory(board, board->side, move, depth, false);
+
+                        /**
+                         * History Malus. (+39.01 elo +/- 13.66)
+                         * Apply a history penalty to the moves before this one,
+                         * to incentivize the program to pick this move earlier.
+                         * https://www.chessprogramming.org/History_Heuristic#History_Maluses
+                         */
+                        for (int i = 0; i < movesPlayed - 1; i++) {
+                            Move malusMove = picker.moveList.list[i];
+                            updateMoveHistory(board, board->side, malusMove, depth, true);
+                        }
+
                         updateKillers(ply, move);
                     }
 

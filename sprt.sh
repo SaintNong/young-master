@@ -10,7 +10,7 @@ set -e
 SPRT_ELO0="0" # H0: New version is the same elo
 SPRT_ELO1="5" # H1: New version is at at least 5 elo stronger
 SPRT_ALPHA="0.05"
-SPRT_BETA="0.05"
+SPRT_BETA="0.10"
 
 ### ============================================================================
 ### Fastchess and Engine Config

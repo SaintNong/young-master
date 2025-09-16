@@ -72,16 +72,20 @@ void clearKillerMoves() {
 }
 
 // Updates history heuristic for a move
-void updateMoveHistory(Board *board, int side, Move move, int depth) {
+void updateMoveHistory(Board *board, int side, Move move, int depth, bool malus) {
+    // Only apply move history to quiet moves
+    if (IsCapture(move)) return;
+
+    // Find history entry for this move
     int piece = board->squares[MoveFrom(move)];
     int to    = MoveTo(move);
-   
-    // Find history entry for this move
     int *entry = &history[side][piece][to];
-    int delta  = depth * depth;
 
-    // Exponential decay for history
-    *entry += delta - (*entry * abs(delta)) / HISTORY_DIVISOR;
+    // Have negative delta if this is a malus
+    int delta  = (malus) ? -depth * depth : depth * depth;
+
+    // Apply delta to entry using exponential decay formula
+    *entry += delta - (*entry * abs(delta)) / HISTORY_MAX_VALUE;
     // printf("%d - %s\n", *entry, moveToString(move));
 
     // Clamp history value to safe range

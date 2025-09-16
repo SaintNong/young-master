@@ -17,7 +17,6 @@ typedef enum {
 #define KILLER_TWO_BONUS 900000
 
 #define HISTORY_MAX_VALUE 100000
-#define HISTORY_DIVISOR HISTORY_MAX_VALUE - 1
 
 // Move picker structure
 typedef struct {
@@ -35,7 +34,7 @@ void initMvvLva();
 void clearMoveHistory();
 void clearKillerMoves();
 
-void updateMoveHistory(Board *board, int side, Move move, int depth);
+void updateMoveHistory(Board *board, int side, Move move, int depth, bool malus);
 void updateKillers(int ply, Move move);
 
 // Move picker
