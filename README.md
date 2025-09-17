@@ -36,12 +36,18 @@
   - Internal iterative reductions
   - Mate distance pruning
   - Draw detection
+  - Check extension
   - Quiescence search
 
 - **Move ordering**
   - Hash move
   - MVV-LVA
+  - Killer moves heuristic
   - History heuristic with malus
+
+- **Evaluation (Manually tuned)**
+  - Piece square tables and material
+  - Mobility
 
 ---
 
