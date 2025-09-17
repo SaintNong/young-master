@@ -16,6 +16,8 @@
 #include "uci.h"
 #include "utils.h"
 
+#define LMP_DEPTH 6
+
 /* -------------------------------------------------------------------------- */
 /*                               Search Helpers                               */
 /* -------------------------------------------------------------------------- */
@@ -23,9 +25,14 @@
 // Late move reduction table.
 // int reduction = LMR_TABLE[depth][movesPlayed];
 int LMR_TABLE[MAX_DEPTH][MAX_LEGAL_MOVES];
+int LMP_TABLE[LMP_DEPTH + 1];
 
-// Initialises the Late Move Reduction Table
-void initLMRTable() {
+void initSearchTables() {
+    // Set all values to zero by default
+    memset(LMR_TABLE, 0, sizeof(LMR_TABLE));
+    memset(LMP_TABLE, 0, sizeof(LMP_TABLE));
+    
+    // Initialises the Late Move Reduction Table
     for (int depth = 1; depth < MAX_DEPTH; depth++) {
         for (int movesPlayed = 1; movesPlayed < MAX_LEGAL_MOVES; movesPlayed++) {
             // Eyeballed
@@ -39,7 +46,14 @@ void initLMRTable() {
             //     printf("D: %d Move: %d R: %d\n", depth, movesPlayed, reduction);
         }
     }
+
+    // Initialises the Late Pruning Table
+    for (int depth = 1; depth <= LMP_DEPTH; depth++) {
+        LMP_TABLE[depth] = 3 + depth * depth;
+        // printf("%d\n", LMP_TABLE[depth]);
+    }
 }
+
 
 /**
  * Some random variation to let the engine explore positions with many draws
@@ -342,9 +356,9 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * https://www.chessprogramming.org/Reverse_Futility_Pruning
      */
     if (
-        !pvNode &&
-        !inCheck &&
-        depth <= 6
+        !pvNode
+        && !inCheck
+        && depth <= 6
     ) {
         int score = eval - 150 * depth;
         if (score >= beta) {
@@ -395,6 +409,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     // Since we couldn't get a fast return, therefore must search the position.
     int bestScore = -INFINITE;
     int movesPlayed = 0;
+    int quietsPlayed = 0;
 
     Move bestMove = NO_MOVE;
     int hashBound = BOUND_UPPER;
@@ -406,6 +421,23 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
+        /**
+         * Late move pruning.
+         * The idea of late move pruning is that at low depths, the quiet moves
+         * near the end of the move list are unlikely to succeed at raising alpha
+         * and we can probably prune them safely. This can also be thought of as
+         * a smooth 'transition' into quiescence search, where we search less
+         * and less quiet moves until we eventually hit a point where we search
+         * no quiet moves, fully dropping into quiescence search.
+         * https://www.talkchess.com/forum/viewtopic.php?t=35955
+         */
+        if (
+            depth <= 5
+            && !pvNode
+            && IsQuiet(move)
+            && !inCheck
+            && quietsPlayed >= LMP_TABLE[depth]
+        ) break; // No captures exist after the first quiet in my ordering.
         
         // Skip illegal moves
         if (makeMove(board, move) == 0) {
@@ -413,6 +445,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             continue;
         }
         movesPlayed++;
+        if (IsQuiet(move)) quietsPlayed++;
         
         /**
          * Principal variation search (PVS), we search the first move with a full

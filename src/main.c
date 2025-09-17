@@ -42,7 +42,7 @@ void initialise() {
     initHashTable(HASH_SIZE_DEFAULT);
 
     // Search
-    initLMRTable();
+    initSearchTables();
 
     // Evaluation
     initEvaluation();
