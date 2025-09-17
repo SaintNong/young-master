@@ -389,7 +389,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * to reduce them to save time to prioritize more important nodes.
      * https://www.chessprogramming.org/Internal_Iterative_Reductions
      */
-    if (!inCheck && depth >= 4 && (pvNode || cutNode) && hashMove == NO_MOVE)
+    if (!inCheck && depth >= 3 && (pvNode || cutNode) && hashMove == NO_MOVE)
         depth--;
 
     // Since we couldn't get a fast return, therefore must search the position.
