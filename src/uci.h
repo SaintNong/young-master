@@ -53,7 +53,8 @@ typedef struct {
 typedef struct {
     int depth;                // Depth to search to
     U64 nodes;                // Number of nodes to search
-    int searchStopTime;       // Time to stop searching at (in ms since epoch)
+    int hardBoundTime;        // Hard bound to stop searching at, checked during search
+    int softBoundTime;        // Soft bound to stop searching at, checked in iterative deepening
     SearchType searchType;    // Type of search from enum above
 } SearchLimits;
 

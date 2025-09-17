@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <math.h>
 
+#include "timeman.h"
 #include "search.h"
 #include "board.h"
 #include "makemove.h"
@@ -65,8 +66,8 @@ static int checkSearchOver(Engine *engine) {
     }
 
     if (limits->searchType == LIMIT_TIME) {
-        // Check whether time is up if we're in a time limited search.
-        if (getTime() >= limits->searchStopTime) {
+        // Check whether we hit the hard bound if we're in a time limited search.
+        if (getTime() >= limits->hardBoundTime) {
             engine->searchState = SEARCH_STOPPED;
             return true;
         }
@@ -602,6 +603,8 @@ Move iterativeDeepening(Engine *engine) {
 
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
+        if (timeSoftBoundReached(&engine->limits)) break;
+
         // Run a search at this depth
         int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0, false);
 
@@ -613,6 +616,7 @@ Move iterativeDeepening(Engine *engine) {
         printSearchInfo(depth, score, engine);
     }
 
+    engine->searchState = SEARCH_STOPPED;
     return bestMove;
 }
 

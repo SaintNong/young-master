@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "uci.h"
+#include "timeman.h"
 #include "utils.h"
 #include "makemove.h"
 #include "move.h"
@@ -32,7 +33,8 @@ void initEngine(Engine *engine) {
 }
 
 // Converts a string to a move.
-// Needs board to configure flags correctly.
+// Needs board to configure flags correctly. This was put here instead of move.c
+// due to a circular dependency :/
 Move stringToMove(char *string, Board *board) {
     // Get from and to squares from string
     int from = stringToSquare(string);
@@ -81,14 +83,6 @@ Move stringToMove(char *string, Board *board) {
 
 float moveOrderingPercentage(SearchInfo info) {
     return ((float)info.fhf/(float)info.fh) * 100.0;
-}
-
-// Simple time management function to determine how long to search
-int calculateTimeToThink(int timeLeft, int increment, int movesToGo) {
-    if (movesToGo < 0) {
-        movesToGo = 40;
-    }
-    return (timeLeft / (movesToGo * 1.5)) + (increment / 2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -195,7 +189,7 @@ void handleGo(Engine *engine, char *input) {
     limits.searchType = LIMIT_INFINITE;
 
     // Time control
-    int timeToSearch = -1;
+    int moveTime = -1;
     int wtime = -1, btime = -1;
     int winc = 0, binc = 0;
     int movesToGo = -1;
@@ -226,9 +220,8 @@ void handleGo(Engine *engine, char *input) {
 
     index = strstr(input, "movetime");
     if (index) {
-        timeToSearch = atoi(index + 9) - 50;
+        moveTime = atoi(index + 9) - 50;
         limits.searchType = LIMIT_TIME;
-        printf("Time budgeted for search: %d ms\n", timeToSearch);
     }
 
     index = strstr(input, "nodes");
@@ -241,22 +234,25 @@ void handleGo(Engine *engine, char *input) {
         limits.searchType = LIMIT_INFINITE;
     }
 
+    // If wtime or btime, then we're in a time limited search.
     if (wtime > 0 || btime > 0) limits.searchType = LIMIT_TIME;
 
     // Calculate time to search if time control is given
-    if (limits.searchType == LIMIT_TIME && timeToSearch == -1) {
+    if (limits.searchType == LIMIT_TIME && moveTime == -1) {
         int timeLeft = (engine->board.side == WHITE) ? wtime : btime;
         int increment = (engine->board.side == WHITE) ? winc : binc;
-        timeToSearch = calculateTimeToThink(
-            timeLeft,
-            increment,
-            movesToGo
-        );
 
-        printf("Time budgeted for search: %d ms\n", timeToSearch);
+        // Set time limits
+        calculateTimeManagement(&limits, timeLeft, increment, movesToGo);
+
+        printf("Soft bound time: %d ms\n", limits.softBoundTime - getTime());
+        printf("Hard bound time: %d ms\n", limits.hardBoundTime - getTime());
+    } else {
+        // Set both hard bound and soft bound to movetime
+        limits.hardBoundTime = getTime() + moveTime;
+        limits.softBoundTime = getTime() + moveTime;
+        printf("Movetime set: %d ms\n", moveTime);
     }
-    limits.searchStopTime = getTime() + timeToSearch;
-
 
     // Start the search within the given limits
     initSearch(engine, limits);
