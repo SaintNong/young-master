@@ -5,7 +5,7 @@
 
 // Engine identifiers
 #define NAME "Young Master"
-#define VERSION_NUM "v1.1"
+#define VERSION_NUM "v1.2"
 #define AUTHOR "Ning XZ"
 
 #ifndef GIT_HASH
