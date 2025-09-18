@@ -39,6 +39,7 @@
   - Draw detection
   - Check extension
   - Quiescence search
+  - Aspiration windows
 
 - **Move ordering**
   - Hash move
