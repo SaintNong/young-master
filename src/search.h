@@ -17,6 +17,10 @@
 // Score to return when search is stopped
 #define SEARCH_STOPPED_SCORE -200000
 
+// Search parameters
+#define LMP_DEPTH 6
+#define ASPIRATION_START_SIZE 10
+#define ASPIRATION_SCALE_FACTOR 2
 
 // Search functions
 Move iterativeDeepening(Engine *engine);

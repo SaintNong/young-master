@@ -16,8 +16,6 @@
 #include "uci.h"
 #include "utils.h"
 
-#define LMP_DEPTH 6
-
 /* -------------------------------------------------------------------------- */
 /*                               Search Helpers                               */
 /* -------------------------------------------------------------------------- */
@@ -54,6 +52,10 @@ void initSearchTables() {
     }
 }
 
+// Returns if a score is a mate score
+int isMateScore(int score) {
+    return (abs(score) > MATE_BOUND);
+}
 
 /**
  * Some random variation to let the engine explore positions with many draws
@@ -601,7 +603,7 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
     printf("info depth %d ", depth);
 
     // Print score in centipawns or mate in x moves
-    if (abs(score) > MATE_BOUND) {
+    if (isMateScore(score)) {
         // Calculate number of moves to mate
         int movesToMate = (MATE_SCORE - abs(score) + 1) / 2;
         printf("score mate %d ", score > 0 ? movesToMate : -movesToMate);
@@ -628,22 +630,80 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
     fflush(stdout);
 }
 
+/**
+ * Aspiration windows.
+ * Aspiration windows are a search improvement that assumes that the score for the
+ * current iteration will be roughly the same as the score for the previous one.
+ * Therefore, we can search with a reduced window around the last iteration's
+ * score, only expanding the window if the score falls outside the guessed bound.
+ * https://www.chessprogramming.org/Aspiration_Windows
+ */
+int aspirationWindow(Engine *engine, int depth, int lastScore) {
+    // Set margin start sizes
+    int betaMargin = ASPIRATION_START_SIZE;
+    int alphaMargin = ASPIRATION_START_SIZE;
+
+    // Do not use aspiration windows on low depth or mate scores
+    if (depth >= 6 && !isMateScore(lastScore)) {
+        // Search until we either get a score, or we fall out of our margin
+        while (alphaMargin <= 500 && betaMargin <= 500) {
+            // Set alpha and beta around the window
+            int alpha = lastScore - alphaMargin;
+            int beta = lastScore + betaMargin;
+
+            // Search with this window
+            int score = search(engine, &engine->pv, alpha, beta, depth, 0, false);
+            
+            // Return our score if it was exact
+            if (score > alpha && score < beta)
+                return score;
+            
+            // Break out quickly if we're out of time
+            if (getTime() > engine->limits.hardBoundTime) break;
+
+            // Widen the window
+            if (score <= alpha)
+                alphaMargin *= 2;
+            if (score >= beta)
+                betaMargin *= 2;
+        }
+    }
+
+    // Full window search if we're out of window
+    return search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0, false);
+}
+
 // Iterative deepening loop
 // https://www.chessprogramming.org/Iterative_Deepening
 Move iterativeDeepening(Engine *engine) {
     SearchLimits *limits = &engine->limits;
     Move bestMove = NO_MOVE;
 
+    // Used our current score to inform our aspiration window for the next iteration
+    int scoreLastIteration = 0;
+    int matesFound = 0;
+
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
         if (timeSoftBoundReached(&engine->limits)) break;
 
         // Run a search at this depth
-        int score = search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0, false);
+        int score = aspirationWindow(engine, depth, scoreLastIteration);
+        scoreLastIteration = score;
 
         // Exit before updating if we're out of time
         if (engine->searchState == SEARCH_STOPPED)
             break;
+        
+        // Exit search if we've found mate for a few iterations
+        if (isMateScore(score)) {
+            matesFound++;
+            // Don't exit if we're in infinite mode
+            if (matesFound >= 3 && engine->limits.searchType != LIMIT_INFINITE)
+                break;
+        } else {
+            matesFound = 0;
+        }
 
         bestMove = engine->pv.moves[0];
         printSearchInfo(depth, score, engine);
