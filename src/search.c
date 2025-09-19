@@ -210,12 +210,14 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
         // Score beat our best score.
         if (score > bestScore) {
             bestScore = score;
-            bestMove = move;
             
             // Update alpha if beaten.
             if (score > alpha) {
                 alpha = score;
+                
+                // Alpha being beaten means we have a new best move
                 hashBound = BOUND_EXACT;
+                bestMove = move;
 
                 // Move was too good, and will be avoided by the opponent.
                 if (alpha >= beta) {
@@ -505,15 +507,17 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         // Checking if search was stopped during move loop to return faster.
         if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
-        // A new best move was found!
+        // Update node best score if beaten
         if (score > bestScore) {
             bestScore = score;
-            bestMove = move;
             
             // Update alpha (the lower bound of score) when it was beaten.
             if (score > alpha) {
                 alpha = score;
+
+                // If alpha is beaten, a new best move was found
                 hashBound = BOUND_EXACT;
+                bestMove = move;
 
                 /**
                  * If alpha was beaten in a PV node, our principal variation

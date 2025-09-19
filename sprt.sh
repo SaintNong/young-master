@@ -23,7 +23,7 @@ LOG_DIR="logs"
 mkdir -p "$LOG_DIR"
 
 # Tournament settings
-CONC=10
+CONC=14
 ROUNDS=10000
 GAMES_PER_ROUND=2
 OPENINGS_BOOK="../books/8mvs.epd"

@@ -96,9 +96,13 @@ void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int 
     int index = hash % hashTable.count;
     HashEntry *entry = &hashTable.entries[index];
 
+    // Don't replace the hash move if it's the same position and we don't have one.
+    if (bestMove != NO_MOVE || entry->hashKey != hash) {
+        entry->bestMove = bestMove;
+    }
+
     // Always replace strategy
     entry->hashKey = hash;
-    entry->bestMove = bestMove;
     entry->depth = depth;
     entry->score = toHashScore(score, ply);
     entry->flag = flag;

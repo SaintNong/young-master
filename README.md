@@ -69,6 +69,7 @@ bin/Young_Master
 ## Credits
 Thank you to:
 - The creators of [fastchess](https://github.com/Disservin/fastchess) and [cutechess](https://github.com/cutechess/cutechess), engine testing frameworks which were very helpful in testing if changes made were actually effective.
+- Members of the Engine Programming discord server, namely shawn_xu, toanth, sscg13, and Twipply for massive help in finding very major flaws in my engine, and helping getting it working on Windows.
 - The [VICE series](https://github.com/bluefeversoft/vice) by BlueFeverSoft for getting me into this hobby, and the general structure of how decently strong engines work.
 - The contributors to the [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) for teaching me, and many others much about chess programming techniques 
 - The creator and contributors of [publius](https://github.com/nescitus/publius), a modern didactic engine which includes the more recent chess programming advancements, helping me massively in understanding some stuff that isn't found on the CPW.
