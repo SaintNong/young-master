@@ -10,6 +10,12 @@
 #include "move.h"
 #include "movegen.h"
 #include "utils.h"
+#include "search.h"
+
+// Converts nodes and time taken to meganodes per second
+double calculateMnps(int nodes, int time) {
+    return (double)nodes / ((double)time / 1000.0) / 1000000.0;
+}
 
 // Simple perft function - counts nodes in position to a certain depth
 U64 perft(Board *board, int depth) {
@@ -88,12 +94,12 @@ void perftBench(Board *board, int depth) {
     printf("Time elapsed (ms): %d\n", elapsed);
 
     // Calculate meganodes per second
-    double mnps = (double)nodes / ((double)elapsed / 1000.0) / 1000000.0;
+    double mnps = calculateMnps(nodes, elapsed);
     printf("Meganodes per second: %.2lf\n", mnps);
 }
 
-// Runs a perft benchmark on a bunch of positions
-void bench() {
+// Runs a perft test suite on a bunch of positions
+void perftSuite() {
     Board board;
 
     int totalTime = 0;
@@ -138,6 +144,7 @@ void bench() {
 
     printf(" Total nodes: %" PRIu64 "\n", totalNodes);
     printf("  Time taken: %-6d ms\n", totalTime);
-    printf("       Speed: %-6.2f Meganodes/s\n", 
-           (double)totalNodes / ((double)totalTime / 1000.0) / 1000000.0);
+
+    double mnps = calculateMnps(totalNodes, totalTime);
+    printf("       Speed: %-6.2f Meganodes/s\n", mnps);
 }

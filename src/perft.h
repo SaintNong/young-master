@@ -4,7 +4,7 @@
 
 int perftDivide(Board *board, int depth);
 void perftBench(Board *board, int depth);
-void bench();
+void perftSuite();
 
 typedef struct {
     char *fen;

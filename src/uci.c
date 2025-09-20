@@ -98,6 +98,7 @@ void handleUci() {
     // Send available options
     printf("option name Hash type spin default %d min %d max %d\n", HASH_SIZE_DEFAULT, HASH_SIZE_MIN, HASH_SIZE_MAX);
     puts("option name Clear Hash type button");
+    puts("option name Threads type spin default 1 min 1 max 1");
 
     puts("uciok");
 }
@@ -280,8 +281,11 @@ void handlePerft(Engine *engine, char *input) {
         // Provides a breakdown of the nodes after each move from this position.
         sscanf(input, "perft divide %d", &depth);
         perftDivide(&engine->board, depth);
+    } else if (strstr(input, "perft test")) {
+        // Runs a perft test suite on a set of positions
+        perftSuite();
     } else {
-        // Runs perft, and statistics like speed and time taken.
+        // Runs perft, and prints statistics like speed and time taken.
         sscanf(input, "perft %d", &depth);
         perftBench(&engine->board, depth);
     }
@@ -309,8 +313,11 @@ void uciLoop() {
         memset(input, 0, sizeof(input));
 
         // Take input line
-        if (!fgets(input, INPUT_BUFFER_SIZE, stdin))
-            continue;
+        if (!fgets(input, INPUT_BUFFER_SIZE, stdin)) {
+            // Quit on stdin closing
+            handleQuit();
+            break; 
+        }
 
         // Strip newline
         input[strcspn(input, "\n")] = 0;
@@ -341,7 +348,7 @@ void uciLoop() {
         } else if (strncmp(input, "perft", 5) == 0) {
             handlePerft(&engine, input);
         } else if (strcmp(input, "bench") == 0) {
-            bench();
+            perftSuite();
         } else if (strcmp(input, "print") == 0) {
             printBoard(&engine.board);
         } else if (strcmp(input, "eval") == 0) {

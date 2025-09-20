@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 #include "uci.h"
@@ -11,10 +12,9 @@
 #include "search.h"
 #include "perft.h"
 #include "eval.h"
+#include "bench.h"
 
 #define NAME_VERSION_STRING WHT NAME " [" CYN VERSION WHT "]" CRESET
-#include "string.h"
-
 void welcome() {
     // Print versioning info
     // printf("Length %lu\n", strlen(NAME_VERSION_STRING));
@@ -48,9 +48,16 @@ void initialise() {
     initEvaluation();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
     welcome();
     initialise();
 
+    if (argc != 1) {
+        // Detect if we're being benched by OpenBench.
+        if (strcmp(argv[1], "bench") == 0) {
+            bench();
+            return 0;
+        }
+    }
     uciLoop();
 }

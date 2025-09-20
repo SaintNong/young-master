@@ -66,16 +66,14 @@ endef
 
 .PHONY: all default release run clean
 
-# Builds and runs the release because I'm lazy
+# We default to release
 default: release
-	$(call log, Auto-running binary: $(EXE))
-	./$(BIN_DIR)/$(EXE)
 
 # Fastest build
 release: $(BIN_DIR)
 	$(call header, Release Build: $(EXE))
-	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(BIN_DIR)/$(EXE)
-	$(call success, Binary $(BIN_DIR)/$(EXE) compiled)
+	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(EXE)
+	$(call success, Binary $(EXE) compiled)
 
 # Builds with asserts on
 assert: $(BIN_DIR)

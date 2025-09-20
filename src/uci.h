@@ -75,5 +75,9 @@ typedef struct {
     SearchState searchState;
 } Engine;
 
+/* -------------------------------------------------------------------------- */
+/*                                UCI Functions                               */
+/* -------------------------------------------------------------------------- */
 
 void uciLoop();
+void initEngine(Engine *engine);
