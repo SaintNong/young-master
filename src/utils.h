@@ -19,6 +19,10 @@
 // Width of line of user input for 'stop' while searching
 #define LINE_WIDTH 16
 
+/* -------------------------------------------------------------------------- */
+/*                               Utility Macros                               */
+/* -------------------------------------------------------------------------- */
+
 /**
  * ANSI Colour Codes from:
  * https://gist.github.com/RabaDabaDoba/145049536f815903c79944599c6f952a
@@ -32,8 +36,16 @@
 #define CYN "\e[0;36m"
 #define WHT "\e[0;37m"
 
-
 #define CRESET "\e[0m"
+
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
+
+/* -------------------------------------------------------------------------- */
+/*                              Utility functions                             */
+/* -------------------------------------------------------------------------- */
+
+int clamp(int x, int low, int high);
 
 // Gets the amount of milliseconds since the unix epoch.
 int getTime();

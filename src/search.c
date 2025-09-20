@@ -33,8 +33,8 @@ void initSearchTables() {
     // Initialises the Late Move Reduction Table
     for (int depth = 1; depth < MAX_DEPTH; depth++) {
         for (int movesPlayed = 1; movesPlayed < MAX_LEGAL_MOVES; movesPlayed++) {
-            // Eyeballed
-            int reduction = 0.25 + log(depth) * log(movesPlayed) / 3;
+            // Eyeballed formula
+            int reduction = LMR_BASE_REDUCTION + log(MIN(depth, 64)) * log(MIN(movesPlayed, 64)) / LMR_DIVISOR;
             if (reduction < 0)
                 reduction = 0;
                 
@@ -47,7 +47,7 @@ void initSearchTables() {
 
     // Initialises the Late Pruning Table
     for (int depth = 1; depth <= LMP_DEPTH; depth++) {
-        LMP_TABLE[depth] = 3 + depth * depth;
+        LMP_TABLE[depth] = LMP_BASE + LMP_PRODUCT * depth * depth;
         // printf("%d\n", LMP_TABLE[depth]);
     }
 }
@@ -296,10 +296,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
          * makes the engine much better at mate finding.
          * https://www.chessprogramming.org/Mate_Distance_Pruning
          */
-        if (alpha < -MATE_SCORE + ply)
-            alpha = -MATE_SCORE + ply;
-        if (beta > MATE_SCORE - ply - 1)
-            beta = MATE_SCORE - ply - 1;
+        alpha = MAX(alpha, -MATE_SCORE + ply);
+        beta = MIN(beta, MATE_SCORE - ply - 1);
 
         if (alpha >= beta) return alpha;
     }
@@ -362,9 +360,9 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (
         !pvNode
         && !inCheck
-        && depth <= 6
+        && depth <= REVERSE_FUTILITY_DEPTH
     ) {
-        int score = eval - 150 * depth;
+        int score = eval - REVERSE_FUTILITY_MARGIN * depth;
         if (score >= beta) {
             return score;
         }
@@ -381,14 +379,14 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         !pvNode
         && !inCheck
         && eval >= beta
-        && depth >= 3
+        && depth >= NULL_MOVE_PRUNING_DEPTH
         && !nullMoveIsBad(board) // Don't do null moves when we only have pawns
         && board->history[board->hisPly-1].move != NO_MOVE
     ) {
         // Calculate reduced depth.
-        int reduction = 4 + depth / 4;
+        int reduction = NULL_REDUCTION_BASE + depth / NULL_REDUCTION_DIVISOR;
         int nullDepth = depth - reduction;
-        if (nullDepth < 0) nullDepth = 0;
+        nullDepth = MAX(nullDepth, 0);
 
         // Make the null move.
         makeNullMove(board);
@@ -407,7 +405,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * to reduce them to save time to prioritize more important nodes.
      * https://www.chessprogramming.org/Internal_Iterative_Reductions
      */
-    if (!inCheck && depth >= 3 && (pvNode || cutNode) && hashMove == NO_MOVE)
+    if (!inCheck && depth >= IIR_DEPTH && (pvNode || cutNode) && hashMove == NO_MOVE)
         depth--;
 
     // Since we couldn't get a fast return, therefore must search the position.
@@ -436,7 +434,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
          * https://www.talkchess.com/forum/viewtopic.php?t=35955
          */
         if (
-            depth <= 5
+            depth <= LMP_DEPTH
             && !pvNode
             && IsQuiet(move)
             && !inCheck
@@ -482,12 +480,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                 // Basic move-count based reduction
                 int reduction = LMR_TABLE[depth][movesPlayed];
 
-                // Apply the reduction then clamp
+                // Apply the reduction then clamp so we don't accidentally extend
+                // or go into negative depths
                 reducedDepth -= reduction;
-                if (reducedDepth < 0)
-                    reducedDepth = 0;
-                if (reducedDepth > depth - 1)
-                    reducedDepth = depth - 1;
+                reducedDepth = clamp(reducedDepth, 0, depth - 1);
             }
 
             // Null window search for non PV moves.

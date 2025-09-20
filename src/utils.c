@@ -113,3 +113,12 @@ void printf_fail(const char *format, ...) {
     va_end(args);
     printf("%s", CRESET);
 }
+
+
+/**
+ * Returns the number clamped between the lower and upper values
+ */
+int clamp(int x, int low, int high) {
+  const int t = x < low ? low : x;
+  return t > high ? high : t;
+}
