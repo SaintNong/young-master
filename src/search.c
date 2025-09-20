@@ -658,7 +658,7 @@ int aspirationWindow(Engine *engine, int depth, int lastScore) {
             // Search with this window
             int score = search(engine, &engine->pv, alpha, beta, depth, 0, false);
             
-            // Return our score if it was exact
+            // Return our score if it was in the window
             if (score > alpha && score < beta)
                 return score;
             
@@ -667,9 +667,9 @@ int aspirationWindow(Engine *engine, int depth, int lastScore) {
 
             // Widen the window
             if (score <= alpha)
-                alphaMargin *= 2;
+                alphaMargin *= ASPIRATION_SCALE_FACTOR;
             if (score >= beta)
-                betaMargin *= 2;
+                betaMargin *= ASPIRATION_SCALE_FACTOR;
         }
     }
 
