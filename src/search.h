@@ -29,7 +29,7 @@
 
 // Late move reduction formula
 #define LMR_BASE_REDUCTION 0.25
-#define LMR_DIVISOR 3
+#define LMR_DIVISOR 2.6
 
 // Reverse futility pruning
 #define REVERSE_FUTILITY_DEPTH 6
