@@ -40,6 +40,9 @@
 #define NULL_REDUCTION_BASE 4
 #define NULL_REDUCTION_DIVISOR 4
 
+// Delta pruning
+#define DELTA_PRUNING_MARGIN 1000
+
 // Internal iterative reductions
 #define IIR_DEPTH 3
 

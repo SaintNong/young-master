@@ -176,8 +176,16 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
         return beta;
 
     // Our lower bound for score is at minimum the current evaluation.
-    if (standPat > alpha)
-        alpha = standPat;
+    alpha = MAX(alpha, standPat);
+
+    /**
+     * Delta pruning.
+     * If we're losing by over a queen in quiescence search, it's almost certain
+     * we cannot find a way to save this position, so we prune it.
+     */
+    if (standPat < alpha - DELTA_PRUNING_MARGIN) {
+        return alpha;
+    }
     
     
     // Begin searching noisy moves in this node.
