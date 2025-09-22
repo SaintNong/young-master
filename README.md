@@ -1,31 +1,48 @@
 <h1 align="center">Young Master (少爷)</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Language-C-blue?style=for-the-badge">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge">
-  <img src="https://img.shields.io/github/v/tag/SaintNong/young-master?style=for-the-badge&color=red&label=Version">
-  <img src="https://img.shields.io/github/last-commit/SaintNong/young-master?style=for-the-badge&color=purple">
+  <img src="https://img.shields.io/badge/License-MIT-238636.svg?style=for-the-badge">
+  <img src="https://img.shields.io/github/v/tag/SaintNong/young-master?style=for-the-badge&label=Latest Release">
+  <img src="https://img.shields.io/github/commits-since/SaintNong/young-master/latest?style=for-the-badge">
 </p>
+
 
 <p align="center">
   <strong>Young Master is a UCI-compatible chess engine written in C.</strong>
 </p>
 <p align="center">
-  <em>Do be careful though, he's a little arrogant!</em>
+  <em>He might be strong, but he's even more arrogant!</em>
 </p>
 
+---
+
 <p align="center">
-    To use this engine you must install a UCI compatible GUI, like <a href="https://github.com/cutechess/cutechess">Cutechess</a> or <a href="http://www.playwitharena.de/">Arena</a>.
+    To use this engine it is highly recommended you install a UCI compatible GUI, like <a href="https://github.com/cutechess/cutechess">Cutechess</a> or <a href="http://www.playwitharena.de/">Arena</a>.
     <img src="images/Preview.png">
 </p>
 
 ---
 
+## Building (Linux only for now)
+
+```bash
+# Clone the repository
+git clone https://github.com/SaintNong/young-master.git
+cd young-master
+
+# Build engine binary
+make release
+
+# Run the engine
+./Young_Master
+```
+
 ## Features
 
 - **Pseudolegal move generation**
   - Magic bitboards
-  - Okay-ish speed
+  - Backup mailbox array
+  - Make/Unmake method
 
 - **Search**
   - Negamax principal variation search
@@ -48,24 +65,14 @@
   - History heuristic with malus
 
 - **Evaluation (Manually tuned)**
+  - Tapered evaluation
   - Piece square tables and material
   - Mobility
 
----
+## Future features
+- A TODO list for new features to be implemented is [here](TODO.md).
 
-## Installing (Linux only for now)
 
-```bash
-# Clone the repository
-git clone https://github.com/SaintNong/young-master.git
-cd young-master
-
-# Build engine binary
-make release
-
-# Run the engine
-bin/Young_Master
-```
 ## Credits
 Thank you to:
 - The creators of [fastchess](https://github.com/Disservin/fastchess) and [cutechess](https://github.com/cutechess/cutechess), engine testing frameworks which were very helpful in testing if changes made were actually effective.
