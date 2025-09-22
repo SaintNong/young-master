@@ -61,8 +61,7 @@ typedef struct {
 // Search information collected during a search
 typedef struct {
     U64 nodes;                // Number of nodes searched
-    int fh;                   // Number of fail highs
-    int fhf;                  // Number of fail high first
+    int seldepth;             // Max depth reached during search
     int searchStartTime;      // Time when the search started
 } SearchInfo;
 

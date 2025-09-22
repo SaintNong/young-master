@@ -45,7 +45,7 @@ int taper(int score, int phase) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Piece Evaluations                             */
+/*                              Piece Evaluation                              */
 /* -------------------------------------------------------------------------- */
 
 // Combination of material and piece square tables in one place.

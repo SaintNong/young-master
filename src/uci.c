@@ -9,6 +9,7 @@
 #include "makemove.h"
 #include "move.h"
 #include "perft.h"
+#include "bench.h"
 #include "eval.h"
 #include "search.h"
 #include "hashtable.h"
@@ -79,10 +80,6 @@ Move stringToMove(char *string, Board *board) {
     }
 
     return ConstructMove(from, to, flag);
-}
-
-float moveOrderingPercentage(SearchInfo info) {
-    return ((float)info.fhf/(float)info.fh) * 100.0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -246,23 +243,20 @@ void handleGo(Engine *engine, char *input) {
         // Set time limits
         calculateTimeManagement(&limits, timeLeft, increment, movesToGo);
 
-        printf("Soft bound time: %d ms\n", limits.softBoundTime - getTime());
-        printf("Hard bound time: %d ms\n", limits.hardBoundTime - getTime());
-    } else {
+        // printf("Soft bound time: %d ms\n", limits.softBoundTime - getTime());
+        // printf("Hard bound time: %d ms\n", limits.hardBoundTime - getTime());
+    } else if (limits.searchType == LIMIT_TIME) {
         // Set both hard bound and soft bound to movetime
         limits.hardBoundTime = getTime() + moveTime;
         limits.softBoundTime = getTime() + moveTime;
-        printf("Movetime set: %d ms\n", moveTime);
     }
 
     // Start the search within the given limits
     initSearch(engine, limits);
     Move bestMove = iterativeDeepening(engine);
 
+    // Print the result of the search
     printf("bestmove %s\n", moveToString(bestMove));
-
-    // Print search statistics
-    printf("Ordering: %.2lf%%\n", moveOrderingPercentage(engine->searchStats));
     printf("Hash table occupied: %.2f%%\n", occupiedHashEntries());
 }
 
@@ -348,7 +342,8 @@ void uciLoop() {
         } else if (strncmp(input, "perft", 5) == 0) {
             handlePerft(&engine, input);
         } else if (strcmp(input, "bench") == 0) {
-            perftSuite();
+            // Run OpenBench benchmark
+            bench();
         } else if (strcmp(input, "print") == 0) {
             printBoard(&engine.board);
         } else if (strcmp(input, "eval") == 0) {

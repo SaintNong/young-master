@@ -89,6 +89,9 @@ void initHashTable(int sizeMB) {
     // printf("Number of hash entries: %lu\n", hashTable.count);
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              Hash Store/Probe                              */
+/* -------------------------------------------------------------------------- */
 
 // Stores given information into the hash table.
 void hashTableStore(U64 hash, int ply, Move bestMove, int depth, int score, int flag) {
@@ -129,16 +132,15 @@ int hashTableProbe(U64 hash, int ply, Move *hashMove, int *depth, int *score, in
 }
 
 /**
- * Probes hash table for just the best move and score
+ * Probes hash table for just the hash move
  */
-Move probeHashMove(U64 hash, int *score) {
+Move probeHashMove(U64 hash) {
     // Calculate hash index and retrieve corresponding entry
     int index = hash % hashTable.count;
     HashEntry *entry = &hashTable.entries[index];
 
     if (entry->hashKey == hash) {
-        // Return the move if the entry exists
-        *score = fromHashScore(entry->score, 0);
+        // Return the hash move if it exists
         return entry->bestMove;
     }
 

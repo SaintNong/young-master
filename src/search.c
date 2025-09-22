@@ -112,10 +112,17 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     engine->searchStats.nodes++;
     Board *board = &engine->board;
 
+    // Get the node type
     const int pvNode = (alpha != beta - 1);
 
-    // Search stopping/time management:
-    // Periodically check if the search should be stopped.
+    // Update seldepth if we've reached a new highest depth
+    if (ply + 1 >= engine->searchStats.seldepth)
+        engine->searchStats.seldepth = ply + 1;
+
+    /**
+     * Time management.
+     * Periodically check if the search should be stopped.
+     */
     if ((engine->searchStats.nodes & 0xFFF) == 0) {
         checkSearchOver(engine);
     }
@@ -136,9 +143,9 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     /**
      * Probe our hash table in qsearch.
      * Here's a debate on whether it's correct to use our hash table in qsearch.
-     * From my own testing I found a very slight gain by probing/storing in
-     * quiescence, so decided to keep it in, especially since all the top
-     * engines are doing it this way now.
+     * From my own testing I found a very slight gain by probing and storing in
+     * quiescence, so decided to keep it in, especially since all the top engines
+     * are doing it this way now.
      * https://talkchess.com/viewtopic.php?t=47373
      */
     Move hashMove = NO_MOVE;
@@ -234,7 +241,8 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
      * We store with depth zero so the score is not trusted for cutoffs in the
      * main search tree.
      */
-    hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
+    if (engine->searchState != SEARCH_STOPPED)
+        hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
 
     // Propogate the best score we found up the tree.
     return bestScore;
@@ -243,9 +251,12 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
 // Principal variation search, with fail-soft alpha beta.
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply, bool cutNode) {
     Board *board = &engine->board;
-    PV childPV;
-    childPV.length = 0;
 
+    // Setup this node's PV information
+    PV childPV;
+    pv->length = 0;
+
+    // Get the node type
     const int rootNode = (ply == 0);
     const int pvNode = (alpha != beta - 1);
 
@@ -255,15 +266,16 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * https://www.chessprogramming.org/Quiescence_Search
      */
     if (depth <= 0) {
-        pv->length = 0;
         return quiesce(engine, alpha, beta, ply + 1);
     }
 
     // Update nodes searched for UCI reporting
     engine->searchStats.nodes++;
 
-    // Search stopping/time management:
-    // Periodically check if the search should be stopped.
+    /**
+     * Time management.
+     * Periodically check if the search should be stopped.
+     */
     if ((engine->searchStats.nodes & 0xFFF) == 0) {
         checkSearchOver(engine);
     }
@@ -351,7 +363,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (inCheck) depth++;
 
     /**
-     * Reverse futility pruning (aka Static Null Move Pruning). (+78.41 elo +/- 19.05)
+     * Reverse futility pruning (aka Static Null Move Pruning).
+     * (+78.41 elo +/- 19.05)
      * If the static evaluation is in fail-high territory while we're near the
      * horizon, we can assume that this node is likely to fail high and return
      * the evaluation directly.
@@ -424,7 +437,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
         /**
-         * Late move pruning.
+         * Late move pruning. (+61.42 elo +/- 17.56)
          * The idea of late move pruning is that at low depths, the quiet moves
          * near the end of the move list are unlikely to succeed at raising alpha
          * and we can probably prune them safely. This can also be thought of as
@@ -562,12 +575,6 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
                         updateKillers(ply, move);
                     }
-
-                    // Track move ordering stats
-                    if (movesPlayed == 1) {
-                        engine->searchStats.fhf++;
-                    }
-                    engine->searchStats.fh++;
                     break;
                 }
             }
@@ -588,7 +595,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
 
     // Store the results of this search in the hash table
-    hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
+    if (engine->searchState != SEARCH_STOPPED)
+        hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
     
     // Propogate the best score we found up the tree.
     return bestScore;
@@ -601,6 +609,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 // Prints search information in UCI format
 static void printSearchInfo(int depth, int score, Engine *engine) {
     printf("info depth %d ", depth);
+
+    // Print max selective depth reached (if different from depth)
+    if (engine->searchStats.seldepth != depth)
+        printf("seldepth %d ", engine->searchStats.seldepth);
 
     // Print score in centipawns or mate in x moves
     if (isMateScore(score)) {
@@ -631,7 +643,7 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
 }
 
 /**
- * Aspiration windows.
+ * Aspiration windows. (+59.55 elo +/- 16.91)
  * Aspiration windows are a search improvement that assumes that the score for the
  * current iteration will be roughly the same as the score for the previous one.
  * Therefore, we can search with a reduced window around the last iteration's
@@ -639,6 +651,9 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
  * https://www.chessprogramming.org/Aspiration_Windows
  */
 int aspirationWindow(Engine *engine, int depth, int lastScore) {
+    // Reset this ply's search stats
+    engine->searchStats.seldepth = 0;
+
     // Set margin start sizes
     int betaMargin = ASPIRATION_START_SIZE;
     int alphaMargin = ASPIRATION_START_SIZE;
@@ -679,35 +694,32 @@ Move iterativeDeepening(Engine *engine) {
     SearchLimits *limits = &engine->limits;
     Move bestMove = NO_MOVE;
 
-    // Used our current score to inform our aspiration window for the next iteration
+    // Use our current score to inform our aspiration window for the next iteration
     int scoreLastIteration = 0;
-    int matesFound = 0;
 
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
-        if (timeSoftBoundReached(&engine->limits)) break;
+        // Stop before the next iteration if we reach our time soft bound.
+        if (timeSoftBoundReached(&engine->limits))
+            break;
 
         // Run a search at this depth
         int score = aspirationWindow(engine, depth, scoreLastIteration);
         scoreLastIteration = score;
 
-        // Exit before updating if we're out of time
+        // Exit before printing a wrong score if we're out of time
         if (engine->searchState == SEARCH_STOPPED)
             break;
-        
-        // Exit search if we've found mate for a few iterations
-        if (isMateScore(score)) {
-            matesFound++;
-            // Don't exit if we're in infinite mode
-            if (matesFound >= 3 && engine->limits.searchType != LIMIT_INFINITE)
-                break;
-        } else {
-            matesFound = 0;
-        }
 
+        // Print this iteration's info
         bestMove = engine->pv.moves[0];
         printSearchInfo(depth, score, engine);
     }
+
+    // Take best root move from hash table (if not overwritten)
+    Move hashMove = probeHashMove(engine->board.hash);
+    if (hashMove != NO_MOVE)
+        bestMove = hashMove;
 
     engine->searchState = SEARCH_STOPPED;
     return bestMove;
@@ -721,9 +733,8 @@ void initSearch(Engine *engine, SearchLimits limits) {
 
     // Clear search statistics
     engine->searchStats.nodes = 0;
-    engine->searchStats.fh = 0;
-    engine->searchStats.fhf = 0;
     engine->searchStats.searchStartTime = getTime();
+    engine->searchStats.seldepth = 0;
 
     // Set engine state and search limits
     engine->searchState = SEARCHING;
