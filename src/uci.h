@@ -80,3 +80,4 @@ typedef struct {
 
 void uciLoop();
 void initEngine(Engine *engine);
+void handleQuit();

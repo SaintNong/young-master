@@ -291,7 +291,7 @@ bool isDraw(Board *board, int ply) {
 
 // Displays the given board on the terminal
 void printBoard(Board *board) {
-    const char asciiPieces[12] = "PNBRQKpnbrqk";
+    const char asciiPieces[] = "PNBRQKpnbrqk";
     int sq;
     int isEmpty;
 

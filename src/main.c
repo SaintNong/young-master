@@ -18,10 +18,10 @@
 void welcome() {
     // Print versioning info
     // printf("Length %lu\n", strlen(NAME_VERSION_STRING));
-    puts("╔═════════════════════════════════════╗");
-    printf("║  %s        ║\n", NAME_VERSION_STRING);
-    printf("║  "WHT "Compiled on: %s  ║\n" CRESET, __DATE__ " " __TIME__);
-    puts("╚═════════════════════════════════════╝");
+    puts("=======================================");
+    printf("|  %s        |\n", NAME_VERSION_STRING);
+    printf("|  "WHT "Compiled on: %s" CRESET"  |\n", __DATE__ " " __TIME__);
+    puts("=======================================");
 
     // Print an arrogant message
     puts(" >  The Young Master is suddenly interrupted during his seclusion.");

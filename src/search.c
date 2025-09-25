@@ -422,7 +422,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         depth--;
 
     // Since we couldn't get a fast return, therefore must search the position.
-    int bestScore = -INFINITE;
+    int bestScore = -INF_SCORE;
     int movesPlayed = 0;
     int quietsPlayed = 0;
 
@@ -685,7 +685,7 @@ int aspirationWindow(Engine *engine, int depth, int lastScore) {
     }
 
     // Full window search if we're out of window
-    return search(engine, &engine->pv, -INFINITE, INFINITE, depth, 0, false);
+    return search(engine, &engine->pv, -INF_SCORE, INF_SCORE, depth, 0, false);
 }
 
 // Iterative deepening loop
