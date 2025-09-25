@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bitboards.h"
+#include "uci.h"
 
 #include <stdio.h>
 #include <string.h>

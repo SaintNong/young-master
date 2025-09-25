@@ -53,12 +53,12 @@ endif
 
 # Working mkdir and rm
 ifeq ($(OS),Windows_NT)
-	CFLAGS += -static
-	MKDIR = if not exist "$(1)" mkdir "$(1)"
-	RM = if exist "$(1)" del /q "$(1)"
+    CFLAGS += -static
+    MKDIR = if not exist "$(1)" mkdir "$(1)"
+    RM = if exist "$(1)" del /q "$(1)"
 else
-	MKDIR = mkdir -p "$(1)"
-	RM = rm -f "$(1)"
+    MKDIR = mkdir -p
+    RM = rm -f
 endif
 
 
@@ -86,11 +86,11 @@ else
 endif
 
 define log
-	$(info $(C_INFO)(INFO)    $(C_DIM)${1}$(C_RESET))
+	@printf "$(C_INFO)(INFO)    $(C_DIM)${1}$(C_RESET)\n"
 endef
 
 define header
-	$(info $(C_HEADER)================= [ $(C_INFO)${1} $(C_HEADER)] ================= $(C_RESET))
+	@printf "$(C_HEADER)================= [ $(C_INFO)${1} $(C_HEADER)] ================= $(C_RESET)\n"
 	$(call log, HASH: $(C_CYAN)$(GIT_HASH)$(C_RESET))
 	$(call log, TIME: $(DATE_TIME))
 	$(call log, Compile starting [$(CC)])
@@ -108,7 +108,7 @@ endef
 endif
 
 define warn
-	$(info $(C_WARN)(WARNING) $(C_DIM)${1}$(C_RESET))
+	@printf "$(C_WARN)(WARNING) $(C_DIM)${1}$(C_RESET))"
 endef
 
 ### ============================================================================
@@ -169,6 +169,12 @@ $(BIN_DIR):
 
 clean:
 	$(call log, Cleaning...)
+ifneq ($(OS),Windows_NT)
 	$(RM) $(BIN_DIR)/$(EXE)
 	$(RM) $(BIN_DIR)/$(SAN_EXE)
 	$(RM) $(BIN_DIR)/$(DBG_EXE)
+else
+	$(RM) $(BIN_DIR)/$(EXE).exe
+	$(RM) $(BIN_DIR)/$(SAN_EXE).exe
+	$(RM) $(BIN_DIR)/$(DBG_EXE).exe
+endif
