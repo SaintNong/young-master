@@ -56,6 +56,7 @@ else
     ### Unix
     ### ============================================================================
 
+    OS := $(shell uname -o)
 
     # Enable colors
     C_INFO    := \e[1;97m
@@ -74,7 +75,7 @@ else
 
     define header
         @echo "$(C_HEADER)================= [ $(C_INFO)${1} $(C_HEADER)] ================= $(C_RESET)"
-        @echo "$(C_INFO)(INFO)      $(C_DIM)OS: $(C_SUCCESS)$(OS)$(C_RESET)"
+        @echo "$(C_INFO)(INFO)      $(C_DIM)OS: $(C_CYAN)$(OS)$(C_RESET)"
         @echo "$(C_INFO)(INFO)    $(C_DIM)HOST: $(C_CYAN)$(shell $(CC) -dumpmachine)$(C_RESET)"
         @echo "$(C_INFO)(INFO)    $(C_DIM)HASH: $(C_CYAN)$(GIT_HASH)$(C_RESET)"
         @echo "$(C_INFO)(INFO)    $(C_DIM)TIME: $(DATE_TIME)$(C_RESET)"
