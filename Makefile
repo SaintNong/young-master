@@ -1,3 +1,5 @@
+include functions.mk
+
 ### ============================================================================
 ### Config and flags
 ### ============================================================================
@@ -15,9 +17,6 @@ EXE = Young_Master
 # Git commit hash and short timestamp for auto-versioning
 GIT_HASH := $(shell git rev-parse --short HEAD)
 DEF_COMMIT_HASH := -DGIT_HASH=\""$(GIT_HASH)"\"
-ifneq ($(OS),Windows_NT)
-SPRT_NAME ?= $(shell date +"%Y-%m-%d-%H%M")
-endif
 
 # Sanitized and assertion binaries
 SAN_EXE := $(EXE)-sanitized
@@ -39,77 +38,6 @@ SANITIZE = -fsanitize=address,undefined
 # Default flags
 CFLAGS = -std=c11 $(OPTIMIZE) $(POPCNT) $(WARN) $(DEF_COMMIT_HASH)
 
-
-### ============================================================================
-### Cross-platform time and mkdir/rm
-### ============================================================================
-
-# Date + Time
-ifeq ($(OS),Windows_NT)
-    DATE_TIME = $(shell powershell -Command "Get-Date -Format 'yyyy-MM-dd hh:mm:ss tt'")
-else
-    DATE_TIME = $(shell date +'%Y-%m-%d %r')
-endif
-
-# Working mkdir and rm
-ifeq ($(OS),Windows_NT)
-    CFLAGS += -static
-    MKDIR = if not exist "$(1)" mkdir "$(1)"
-    RM = if exist "$(1)" del /q "$(1)"
-else
-    MKDIR = mkdir -p
-    RM = rm -f
-endif
-
-
-### ============================================================================
-### Printing Functions
-### ============================================================================
-
-# Colour definitions, disable colours on Windows
-ifeq ($(OS),Windows_NT)
-    C_INFO    :=
-    C_SUCCESS :=
-    C_WARN    :=
-    C_HEADER  :=
-    C_RESET   :=
-    C_DIM     :=
-    C_CYAN    :=
-else
-    C_INFO    := \e[1;97m
-    C_SUCCESS := \e[1;92m
-    C_WARN    := \e[1;33m
-    C_HEADER  := \e[97m
-    C_RESET   := \e[0m
-    C_DIM     := \e[0;97m
-    C_CYAN    := \e[0;36m
-endif
-
-define log
-	@printf "$(C_INFO)(INFO)    $(C_DIM)${1}$(C_RESET)\n"
-endef
-
-define header
-	@printf "$(C_HEADER)================= [ $(C_INFO)${1} $(C_HEADER)] ================= $(C_RESET)\n"
-	$(call log, HASH: $(C_CYAN)$(GIT_HASH)$(C_RESET))
-	$(call log, TIME: $(DATE_TIME))
-	$(call log, Compile starting [$(CC)])
-endef
-
-# Windows doesn't support checkmarks so this will have to do
-ifeq ($(OS),Windows_NT)
-define success
-	@echo $(C_SUCCESS)(SUCCESS) $(C_DIM)${1} yay!$(C_RESET)
-endef
-else
-define success
-	@echo "$(C_SUCCESS)(SUCCESS) $(C_DIM)${1} ✓$(C_RESET)"
-endef
-endif
-
-define warn
-	@printf "$(C_WARN)(WARNING) $(C_DIM)${1}$(C_RESET))"
-endef
 
 ### ============================================================================
 ### Targets
@@ -174,7 +102,7 @@ ifneq ($(OS),Windows_NT)
 	$(RM) $(BIN_DIR)/$(SAN_EXE)
 	$(RM) $(BIN_DIR)/$(DBG_EXE)
 else
-	$(RM) $(BIN_DIR)/$(EXE).exe
-	$(RM) $(BIN_DIR)/$(SAN_EXE).exe
-	$(RM) $(BIN_DIR)/$(DBG_EXE).exe
+	@if exist "$(BIN_DIR)\$(EXE).exe" del /q "$(BIN_DIR)\$(EXE).exe"
+	@if exist "$(BIN_DIR)\$(SAN_EXE).exe" del /q "$(BIN_DIR)\$(SAN_EXE).exe"
+	@if exist "$(BIN_DIR)\$(DBG_EXE).exe" del /q "$(BIN_DIR)\$(DBG_EXE).exe"
 endif
