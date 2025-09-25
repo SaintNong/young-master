@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-238636.svg?style=for-the-badge">
-  <img src="https://img.shields.io/github/v/tag/SaintNong/young-master?style=for-the-badge&label=Latest Release">
+  <img src="https://img.shields.io/github/v/tag/SaintNong/young-master?style=for-the-badge&label=Release">
   <img src="https://img.shields.io/github/commits-since/SaintNong/young-master/latest?style=for-the-badge">
 </p>
 
