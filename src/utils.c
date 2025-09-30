@@ -89,7 +89,7 @@ int checkUserStop() {
         
         if (strcmp(input, "stop") == 0) {
             return true;
-        } else {
+        } else if (strcmp(input, "quit") == 0) {
             // Cleanup and exit instantly
             handleQuit();
             exit(EXIT_SUCCESS);

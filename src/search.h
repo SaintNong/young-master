@@ -17,6 +17,9 @@
 // Score to return when search is stopped
 #define SEARCH_STOPPED_SCORE -200000
 
+// How many ms after search start to start reporting currmove
+#define REPORT_CURRMOVE_AFTER 1000
+
 /* -------------------------------------------------------------------------- */
 /*                          Search Tunable Parameters                         */
 /* -------------------------------------------------------------------------- */
@@ -51,6 +54,7 @@
 /*                              Search functions                              */
 /* -------------------------------------------------------------------------- */
 
+void printCurrentMove(int depth, Move move, int movesPlayed);
 Move iterativeDeepening(Engine *engine);
 void initSearch(Engine *engine, SearchLimits limits);
 void initSearchTables();

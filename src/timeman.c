@@ -45,6 +45,5 @@ void calculateTimeManagement(SearchLimits *limits, int timeLeft, int increment, 
     int currentTime = getTime();
     limits->hardBoundTime = currentTime + hardBound;
     limits->softBoundTime = currentTime + softBound;
-    printf("%d\n", limits->softBoundTime);
 }
 

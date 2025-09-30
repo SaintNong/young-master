@@ -104,15 +104,18 @@ static int checkSearchOver(Engine *engine) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                   Search                                   */
+/*                              Quiescence Search                             */
 /* -------------------------------------------------------------------------- */
 
 // Searches until the position is non tactical to get a more accurate evaluation.
 static int quiesce(Engine *engine, int alpha, int beta, int ply) {
-    engine->searchStats.nodes++;
-    Board *board = &engine->board;
+    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
-    // Get the node type
+    // Initialise this node's information.
+    Board *board = &engine->board;
+    engine->searchStats.nodes++;
+
+    // Classify the node type
     const int pvNode = (alpha != beta - 1);
 
     // Update seldepth if we've reached a new highest depth
@@ -128,7 +131,6 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     }
 
     // Return up the tree if the search was stopped.
-    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
     // Don't search if we're at our max depth to avoid memory corruption.
     if (ply >= MAX_DEPTH - 1) {
@@ -241,22 +243,26 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
      * We store with depth zero so the score is not trusted for cutoffs in the
      * main search tree.
      */
-    if (engine->searchState != SEARCH_STOPPED)
-        hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
+    hashTableStore(board->hash, ply, bestMove, 0, bestScore, hashBound);
 
     // Propogate the best score we found up the tree.
     return bestScore;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                   Search                                   */
+/* -------------------------------------------------------------------------- */
+
 // Principal variation search, with fail-soft alpha beta.
 static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int ply, bool cutNode) {
-    Board *board = &engine->board;
+    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
 
-    // Setup this node's PV information
+    // Initialise this node's information.
+    Board *board = &engine->board;
     PV childPV;
     pv->length = 0;
 
-    // Get the node type
+    // Classify the node type
     const int rootNode = (ply == 0);
     const int pvNode = (alpha != beta - 1);
 
@@ -279,9 +285,6 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if ((engine->searchStats.nodes & 0xFFF) == 0) {
         checkSearchOver(engine);
     }
-
-    // Return up the tree if the search was stopped.
-    if (engine->searchState == SEARCH_STOPPED) return SEARCH_STOPPED_SCORE;
     
     // Don't search if we're at our max depth to avoid memory corruption.
     if (ply >= MAX_DEPTH - 1) {
@@ -297,10 +300,8 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
          * Draw detection. Detects if the board is a draw by 50 move rule,
          * three-fold repetition, or insufficient mating material.
          */
-        if (isDraw(board, ply)) {
-            pv->length = 0;
+        if (isDraw(board, ply))
             return drawScore(engine->searchStats.nodes);
-        }
 
         /**
          * Mate distance pruning. In positions with a mate we prune lines which
@@ -461,6 +462,13 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
         movesPlayed++;
         if (IsQuiet(move)) quietsPlayed++;
+
+        /**
+         * At high depths we report the current root move that's being searched.
+         */
+        if (rootNode && engine->reportCurrMove) {
+            printCurrentMove(depth, move, movesPlayed);
+        }
         
         /**
          * Principal variation search (PVS), we search the first move with a full
@@ -529,17 +537,16 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                 bestMove = move;
 
                 /**
-                 * If alpha was beaten in a PV node, our principal variation
-                 * needs to be updated with the new best line.
+                 * If alpha was beaten, our principal variation needs to be updated
+                 * with the new best line. (This also implies that we're in a PV
+                 * node, since other nodes are searched with zero windows.)
                  * My implementation uses Bruce Moreland's Method of tracking PV.
                  * https://web.archive.org/web/20040620092229/http://www.brucemo.com/compchess/programming/pv.htm
                  * https://www.chessprogramming.org/Principal_Variation
                  */
-                if (pvNode) {
-                    pv->length = 1 + childPV.length;
-                    pv->moves[0] = move;
-                    memcpy(pv->moves + 1, childPV.moves, sizeof(Move) * childPV.length);
-                }
+                pv->length = 1 + childPV.length;
+                pv->moves[0] = move;
+                memcpy(pv->moves + 1, childPV.moves, sizeof(Move) * childPV.length);
 
                 /**
                  * Fail high cutoff.
@@ -586,7 +593,6 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * stalemate.
      */
     if (movesPlayed == 0) {
-        pv->length = 0;
         if (inCheck)
             return -MATE_SCORE + ply;
         else
@@ -595,8 +601,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
 
     // Store the results of this search in the hash table
-    if (engine->searchState != SEARCH_STOPPED)
-        hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
+    hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
     
     // Propogate the best score we found up the tree.
     return bestScore;
@@ -605,6 +610,15 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 /* -------------------------------------------------------------------------- */
 /*                                  Search IO                                 */
 /* -------------------------------------------------------------------------- */
+
+// Prints the current root move being considered
+void printCurrentMove(int depth, Move move, int movesPlayed) {
+    printf("info depth %d currmove %s currmovenumber %d\n",
+        depth,
+        moveToString(move),
+        movesPlayed
+    );
+}
 
 // Prints search information in UCI format
 static void printSearchInfo(int depth, int score, Engine *engine) {
@@ -650,7 +664,7 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
  * score, only expanding the window if the score falls outside the guessed bound.
  * https://www.chessprogramming.org/Aspiration_Windows
  */
-int aspirationWindow(Engine *engine, int depth, int lastScore) {
+int aspirationWindow(Engine *engine, PV *pv, int depth, int lastScore) {
     // Reset this ply's search stats
     engine->searchStats.seldepth = 0;
 
@@ -667,14 +681,15 @@ int aspirationWindow(Engine *engine, int depth, int lastScore) {
             int beta = lastScore + betaMargin;
 
             // Search with this window
-            int score = search(engine, &engine->pv, alpha, beta, depth, 0, false);
+            int score = search(engine, pv, alpha, beta, depth, 0, false);
+            
+            // Break out quickly if we're out of time
+            if (getTime() > engine->limits.hardBoundTime)
+                return SEARCH_STOPPED_SCORE;
             
             // Return our score if it was in the window
             if (score > alpha && score < beta)
                 return score;
-            
-            // Break out quickly if we're out of time
-            if (getTime() > engine->limits.hardBoundTime) break;
 
             // Widen the window
             if (score <= alpha)
@@ -684,45 +699,54 @@ int aspirationWindow(Engine *engine, int depth, int lastScore) {
         }
     }
 
-    // Full window search if we're out of window
-    return search(engine, &engine->pv, -INF_SCORE, INF_SCORE, depth, 0, false);
+    // Full window search if we fall out of [-500, 500]
+    return search(engine, pv, -INF_SCORE, INF_SCORE, depth, 0, false);
 }
 
 // Iterative deepening loop
 // https://www.chessprogramming.org/Iterative_Deepening
 Move iterativeDeepening(Engine *engine) {
     SearchLimits *limits = &engine->limits;
-    Move bestMove = NO_MOVE;
+    PV currentPV = {0};
 
-    // Use our current score to inform our aspiration window for the next iteration
-    int scoreLastIteration = 0;
+    // Our current best estimate of the root score
+    // The aspiration window after a certain depth is centered around this score.
+    int rootScore = 0;
 
     // Iteratively increase search depth
     for (int depth = 1; depth <= limits->depth; depth++) {
         // Stop before the next iteration if we reach our time soft bound.
-        if (timeSoftBoundReached(&engine->limits))
+        // Also stop if we've hit one of our limits (nodes, time, manual stop).
+        if (timeSoftBoundReached(&engine->limits) || engine->searchState == SEARCH_STOPPED)
             break;
 
         // Run a search at this depth
-        int score = aspirationWindow(engine, depth, scoreLastIteration);
-        scoreLastIteration = score;
+        int score = aspirationWindow(engine, &currentPV, depth, rootScore);
 
-        // Exit before printing a wrong score if we're out of time
-        if (engine->searchState == SEARCH_STOPPED)
-            break;
+        // Update the root score
+        if (score != SEARCH_STOPPED_SCORE)
+            rootScore = score;
 
-        // Print this iteration's info
-        bestMove = engine->pv.moves[0];
-        printSearchInfo(depth, score, engine);
+        // Update our PV if a full line can be recovered from this search.
+        if (currentPV.length > 0)
+            engine->pv = currentPV;
+
+        // Print this iteration's info string
+        printSearchInfo(depth, rootScore, engine);
+
+        // Turn on currmove reporting after some time has passed
+        if (getTime() > engine->limits.searchStartTime + REPORT_CURRMOVE_AFTER)
+            engine->reportCurrMove = true;
     }
+    engine->searchState = SEARCH_STOPPED;
 
-    // Take best root move from hash table (if not overwritten)
+    // Take best move from hash
     Move hashMove = probeHashMove(engine->board.hash);
     if (hashMove != NO_MOVE)
-        bestMove = hashMove;
-
-    engine->searchState = SEARCH_STOPPED;
-    return bestMove;
+        return hashMove;
+    
+    // Fallback to PV
+    return engine->pv.moves[0];
 }
 
 // Gets the engine ready to search, with given limits.
@@ -739,6 +763,7 @@ void initSearch(Engine *engine, SearchLimits limits) {
     // Set engine state and search limits
     engine->searchState = SEARCHING;
     engine->limits = limits;
+    engine->reportCurrMove = false;
 
     // Clear move ordering heuristics
     clearMoveHistory();

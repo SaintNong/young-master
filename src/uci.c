@@ -185,6 +185,7 @@ void handleGo(Engine *engine, char *input) {
     limits.depth = MAX_DEPTH - 1;
     limits.nodes = -1;
     limits.searchType = LIMIT_INFINITE;
+    limits.searchStartTime = getTime();
 
     // Time control
     int moveTime = -1;
