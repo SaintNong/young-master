@@ -54,7 +54,9 @@
 /*                              Search functions                              */
 /* -------------------------------------------------------------------------- */
 
+int SEE(Board *board, Move move, int threshold);
 void printCurrentMove(int depth, Move move, int movesPlayed);
+
 Move iterativeDeepening(Engine *engine);
 void initSearch(Engine *engine, SearchLimits limits);
 void initSearchTables();

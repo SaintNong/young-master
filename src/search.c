@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "timeman.h"
+#include "magicmoves.h"
 #include "search.h"
 #include "board.h"
 #include "makemove.h"
@@ -101,6 +102,124 @@ static int checkSearchOver(Engine *engine) {
     } else {
         return false;
     }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Static Exchange Evaluation                         */
+/* -------------------------------------------------------------------------- */
+// Piece values used in Static Exchange Evaluation
+const int SEEPieceValues[NB_PIECES] = {100, 320, 320, 500, 950, 0};
+
+/**
+ * Static Exchange Evaluation (SEE).
+ * This function is a decently fast way of checking whether a move loses material
+ * or not. It's a lot faster than actually searching the moves, at the cost of
+ * some inaccuracies on edge cases.
+ * 
+ * Reference: https://www.chessprogramming.org/SEE_-_The_Swap_Algorithm
+ */
+int SEE(Board *board, Move move, int threshold) {
+    int from, exchangeSquare, nextPiece, sideToCapture, evaluation;
+    U64 occupied, attackers, attackersOnSide;
+
+    // Extract move info
+    from = MoveFrom(move);
+    exchangeSquare = MoveTo(move);
+
+    // Next piece to be captured
+    nextPiece = board->squares[from];
+
+    // Set evaluation if the move made was a capture
+    if (IsCapture(move) && !IsEnpass(move)) {
+        evaluation = board->squares[exchangeSquare];
+    } else {
+        evaluation = 0;
+    }
+
+    // Account for material balance shifts due to promotion and enpassant.
+    if (IsPromotion(move))
+        evaluation += SEEPieceValues[MovePromotedPiece(move)] - SEEPieceValues[PAWN];
+    else if (IsEnpass(move))
+        evaluation += SEEPieceValues[PAWN];
+    
+    // Apply the threshold to our evaluation
+    evaluation -= threshold;
+
+    // If in best case (no captures happen) we are still below threshold then the
+    // exchange is certain to lose.
+    if (evaluation < 0)
+        return false;
+
+    // If we lose the piece and still aren't losing then this exchange is
+    // guaranteed to beat the threshold.
+    evaluation -= SEEPieceValues[board->squares[from]];
+    if (evaluation >= 0)
+        return true;
+
+    // Opponent to capture next
+    sideToCapture = !board->side;
+
+    // Occupancy after the move is made
+    occupied = board->colors[BOTH];
+    clearBit(&occupied, from);
+
+    // Get all the possible attackers to the square we're exchanging on
+    attackers = allAttackersToSquare(board, occupied, exchangeSquare) & occupied;
+
+    // Get sliders for xrays
+    U64 bishops = board->pieces[BISHOP] | board->pieces[QUEEN];
+    U64 rooks = board->pieces[ROOK] | board->pieces[QUEEN];
+
+    while (true) {
+        // Get attackers
+        attackersOnSide = attackers & board->colors[sideToCapture];
+
+        if (attackersOnSide == 0ULL)
+            break; // No more attackers left
+
+        // Get least valuable attacker of the square
+        for (nextPiece = PAWN; nextPiece <= KING; nextPiece++)
+            if (attackersOnSide & board->pieces[nextPiece])
+                break;
+
+        // Remove the attacker from occupied
+        clearBit(&occupied, getlsb(attackersOnSide & board->pieces[nextPiece]));
+
+        // Update slider attacks
+        // Diagonal moves may reveal bishop attacks
+        if (nextPiece == PAWN || nextPiece == BISHOP || nextPiece == QUEEN)
+            attackers |= Bmagic(exchangeSquare, occupied) & bishops;
+        // Vertical or horizontal moves may reveal bishop or queen attacks
+        if (nextPiece == ROOK || nextPiece == QUEEN)
+            attackers |= Rmagic(exchangeSquare, occupied) & rooks;
+
+        // Remove pieces already used
+        attackers &= occupied;
+
+        // Swap sides
+        sideToCapture = !sideToCapture;
+
+        // Negamax the evaluation
+        evaluation = -evaluation - 1 - SEEPieceValues[nextPiece];
+
+        /**
+         * If the evaluation is positive after losing the next piece then we've
+         * won the exchange.
+         */
+        if (evaluation >= 0) {
+            /**
+             * If the last piece was a king and there are still attackers to the
+             * square, then our last move is illegal and we actually lost.
+             */
+            if (nextPiece == KING && (attackers & board->colors[sideToCapture]))
+                sideToCapture = !sideToCapture;
+
+            break;
+        }
+    }
+
+    // The last to move has no more captures left and thus loses this exchange.
+    return board->side != sideToCapture;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -201,7 +320,10 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
         // Skip non noisy moves.
-        if (!IsCapture(move)) break;
+        if (!IsCapture(move)) continue;
+
+        // Skip moves with bad SEE in qsearch
+        if (!SEE(board, move, 0)) continue;
         
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {
