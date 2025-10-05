@@ -25,6 +25,12 @@
 /* -------------------------------------------------------------------------- */
 // these currently aren't tuned because I unfortunately don't have a server farm
 
+// Used in both SEE and Delta pruning, includes EMPTY = 0
+static const int SEE_PIECE_VALUES[NB_PIECES + 1] = {
+    100, 300, 310, 500, 900, 0, 
+    0 // Empty
+};
+
 // Late move pruning formula
 #define LMP_DEPTH 5
 #define LMP_BASE 3
@@ -42,6 +48,9 @@
 #define NULL_MOVE_PRUNING_DEPTH 3
 #define NULL_REDUCTION_BASE 4
 #define NULL_REDUCTION_DIVISOR 4
+
+// Delta pruning
+#define DELTA_PRUNE_MARGIN 150
 
 // Internal iterative reductions
 #define IIR_DEPTH 3

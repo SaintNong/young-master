@@ -202,6 +202,22 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
         // Skip non noisy moves.
         if (!IsCapture(move)) break;
+
+        /**
+         * Delta Pruning.
+         * Delta pruning is a type of futility pruning in the quiescence search.
+         * When we are very far below alpha, and in the very best case score of
+         * our move we still can't get close to alpha, then we can probably safely
+         * skip this move and all of it's branches.
+         */
+        int capturedPiece = board->squares[MoveTo(move)];
+        int moveBestCase = MAX(SEE_PIECE_VALUES[capturedPiece], SEE_PIECE_VALUES[PAWN]);
+        if (IsPromotion(move))
+            moveBestCase += SEE_PIECE_VALUES[QUEEN] - SEE_PIECE_VALUES[PAWN];
+        if (standPat + moveBestCase + DELTA_PRUNE_MARGIN <= alpha) {
+            // Prune the move since the best case + margin is still below alpha
+            continue;
+        }
         
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {
