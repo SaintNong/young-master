@@ -320,10 +320,23 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
         // Skip non noisy moves.
-        if (!IsCapture(move)) continue;
+        if (!IsCapture(move)) break;
 
-        // Skip moves with bad SEE in qsearch
-        if (!SEE(board, move, 0)) continue;
+        /**
+         * Delta Pruning. (+29.87 elo +/- 15.87)
+         * Delta pruning is a type of futility pruning in the quiescence search.
+         * When we are very far below alpha, and in the very best case score of
+         * our move we still can't get close to alpha, then we can probably safely
+         * skip this move and all of it's branches.
+         */
+        int capturedPiece = board->squares[MoveTo(move)];
+        int moveBestCase = MAX(SEE_PIECE_VALUES[capturedPiece], SEE_PIECE_VALUES[PAWN]);
+        if (IsPromotion(move))
+            moveBestCase += SEE_PIECE_VALUES[QUEEN] - SEE_PIECE_VALUES[PAWN];
+        if (standPat + moveBestCase + DELTA_PRUNE_MARGIN <= alpha) {
+            // Prune the move since the best case + margin is still below alpha
+            continue;
+        }
         
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {
@@ -620,7 +633,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             // Compute depth reduction for LMR
             int reducedDepth = depth - 1;
             if (IsQuiet(move) && !inCheck && !isKillerMove) {
-                // Basic move-count based reduction
+                // Base depth and move-count based reduction
                 int reduction = LMR_TABLE[depth][movesPlayed];
 
                 // Apply the reduction then clamp so we don't accidentally extend
@@ -689,7 +702,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                      */
                     if (!IsCapture(move)) {
                         // Apply a history bonus to this move.
-                        updateMoveHistory(board, board->side, move, depth, false);
+                        updateMoveHistory(board, move, depth, false);
 
                         /**
                          * History Malus. (+39.01 elo +/- 13.66)
@@ -699,7 +712,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                          */
                         for (int i = 0; i < movesPlayed - 1; i++) {
                             Move malusMove = picker.moveList.list[i];
-                            updateMoveHistory(board, board->side, malusMove, depth, true);
+                            updateMoveHistory(board, malusMove, depth, true);
                         }
 
                         updateKillers(ply, move);

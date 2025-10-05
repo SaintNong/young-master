@@ -61,25 +61,39 @@ int scoreMove(MovePicker *picker, Move move, Board *board) {
     return score;
 }
 
-// Clears the move history table
-void clearMoveHistory() {
-    memset(history, 0, sizeof(history));
-}
-
 // Clears the killer table
 void clearKillerMoves() {
     memset(killers, NO_MOVE, sizeof(killers));
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                Move History                                */
+/* -------------------------------------------------------------------------- */
+
+// Clears the move history table
+void clearMoveHistory() {
+    memset(history, 0, sizeof(history));
+}
+
+// Gets the history of this move
+int getMoveHistory(Board *board, Move move) {
+    // Extract move information
+    int piece = board->squares[MoveFrom(move)];
+    int to    = MoveTo(move);
+
+    // Return this move's history
+    return history[board->side][piece][to];
+}
+
 // Updates history heuristic for a move
-void updateMoveHistory(Board *board, int side, Move move, int depth, bool malus) {
+void updateMoveHistory(Board *board, Move move, int depth, bool malus) {
     // Only apply move history to quiet moves
     if (IsCapture(move)) return;
 
     // Find history entry for this move
     int piece = board->squares[MoveFrom(move)];
     int to    = MoveTo(move);
-    int *entry = &history[side][piece][to];
+    int *entry = &history[board->side][piece][to];
 
     // Have negative delta if this is a malus
     int delta  = (malus) ? -depth * depth : depth * depth;
