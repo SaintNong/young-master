@@ -498,7 +498,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             // Compute depth reduction for LMR
             int reducedDepth = depth - 1;
             if (IsQuiet(move) && !inCheck && !isKillerMove) {
-                // Basic move-count based reduction
+                // Base depth and move-count based reduction
                 int reduction = LMR_TABLE[depth][movesPlayed];
 
                 // Apply the reduction then clamp so we don't accidentally extend
@@ -567,7 +567,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                      */
                     if (!IsCapture(move)) {
                         // Apply a history bonus to this move.
-                        updateMoveHistory(board, board->side, move, depth, false);
+                        updateMoveHistory(board, move, depth, false);
 
                         /**
                          * History Malus. (+39.01 elo +/- 13.66)
@@ -577,7 +577,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                          */
                         for (int i = 0; i < movesPlayed - 1; i++) {
                             Move malusMove = picker.moveList.list[i];
-                            updateMoveHistory(board, board->side, malusMove, depth, true);
+                            updateMoveHistory(board, malusMove, depth, true);
                         }
 
                         updateKillers(ply, move);
