@@ -39,8 +39,9 @@ make release
 
 ## Features
 
-- **Pseudolegal move generation**
+- **Board representation + Movegen**
   - Magic bitboards
+  - Pseudolegal move generation
   - Backup mailbox array
   - Make/Unmake method
 
@@ -49,9 +50,10 @@ make release
   - Hash table cutoffs
   - Null move pruning
   - Reverse futility pruning
-  - Late move reductions
-  - Late move pruning
   - Internal iterative reductions
+  - Late move pruning
+  - Late move reductions
+  - Delta pruning (move based)
   - Mate distance pruning
   - Draw detection
   - Check extension
@@ -61,7 +63,7 @@ make release
 - **Move ordering**
   - Hash move
   - MVV-LVA
-  - Killer moves heuristic
+  - Killer moves heuristic (2 killers)
   - History heuristic with malus
 
 - **Evaluation (Manually tuned)**

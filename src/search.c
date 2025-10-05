@@ -204,7 +204,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
         if (!IsCapture(move)) break;
 
         /**
-         * Delta Pruning.
+         * Delta Pruning. (+29.87 elo +/- 15.87)
          * Delta pruning is a type of futility pruning in the quiescence search.
          * When we are very far below alpha, and in the very best case score of
          * our move we still can't get close to alpha, then we can probably safely
