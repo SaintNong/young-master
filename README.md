@@ -68,7 +68,7 @@ make release CC=clang LDFLAGS=-fuse-ld=lld
   - Draw detection
   - Check extension
   - Quiescence search
-  - Static exchange evaluation pruning
+  - Static exchange evaluation pruning (qsearch and main search)
   - Aspiration windows
 
 - **Move ordering**
