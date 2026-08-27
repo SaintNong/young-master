@@ -24,18 +24,27 @@
 
 ---
 
-## Building (Linux only for now)
+## Building
+
+### Linux
 
 ```bash
-# Clone the repository
 git clone https://github.com/SaintNong/young-master.git
 cd young-master
-
-# Build engine binary
 make release
-
-# Run the engine
 ./Young_Master
+```
+
+### Windows
+
+Install MSYS2, open a UCRT64 terminal, then run:
+
+```bash
+pacman -S --needed git make mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-lld
+git clone https://github.com/SaintNong/young-master.git
+cd young-master
+make release CC=clang LDFLAGS=-fuse-ld=lld
+./Young_Master.exe
 ```
 
 ## Features
