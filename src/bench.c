@@ -29,13 +29,10 @@ void bench() {
         parseFen(&engine.board, test.fen);
         
         // Set up search limits
-        SearchLimits limits;
+        SearchLimits limits = {0};
         limits.depth = 14;
         limits.nodes = -1;
         limits.searchType = LIMIT_DEPTH;
-        
-        // Clear search stats for accurate measurement
-        initSearch(&engine, limits);
         
         // Run the search
         int start = getTime();
