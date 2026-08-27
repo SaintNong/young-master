@@ -9,7 +9,7 @@
 #include "utils.h"
 
 // Runs a benchmark test suite on multiple positions
-void bench() {
+void bench(void) {
     // Initialise engine just like it is in uci
     Engine engine;
     initEngine(&engine);
@@ -30,7 +30,7 @@ void bench() {
         
         // Set up search limits
         SearchLimits limits = {0};
-        limits.depth = 14;
+        limits.depth = 13;
         limits.nodes = -1;
         limits.searchType = LIMIT_DEPTH;
         

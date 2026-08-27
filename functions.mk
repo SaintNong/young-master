@@ -9,23 +9,23 @@ ifeq ($(OS),Windows_NT)
     RM = del /q
 
     define log
-        @echo (INFO)    ${1}
+        @echo INFO: ${1}
     endef
 
     define header
         @echo ================= [ ${1} ] =================
-        @echo (INFO)      OS: $(OS_NAME)
-        @echo (INFO)    HOST: $(shell $(CC) -dumpmachine)
-        @echo (INFO)    HASH: $(GIT_HASH)
-        @echo (INFO)    Compile starting [$(CC)]
+        @echo INFO: OS: $(OS_NAME)
+        @echo INFO: HOST: $(shell $(CC) -dumpmachine)
+        @echo INFO: HASH: $(GIT_HASH)
+        @echo INFO: Compile starting [$(CC)]
     endef
 
     define success
-        @echo (SUCCESS) ${1}
+        @echo SUCCESS: ${1}
     endef
 
     define warn
-        @echo (WARNING) ${1}
+        @echo WARNING: ${1}
     endef
 else
     OS_NAME := $(shell uname -s 2>/dev/null || echo Unix)

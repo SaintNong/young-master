@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "uci.h"
 #include "utils.h"
@@ -53,10 +54,12 @@ int main(int argc, char *argv[]) {
     initialise();
 
     if (argc != 1) {
-        // Detect if we're being benched by OpenBench.
         if (strcmp(argv[1], "bench") == 0) {
             bench();
-            return 0;
+            return EXIT_SUCCESS;
+        }
+        if (strcmp(argv[1], "perft-test") == 0) {
+            return perftSuite() ? EXIT_SUCCESS : EXIT_FAILURE;
         }
     }
 

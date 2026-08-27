@@ -39,7 +39,7 @@ CFLAGS = -std=c11 $(OPTIMIZE) $(POPCNT) $(WARN) $(DEF_COMMIT_HASH)
 ### Targets
 ### ============================================================================
 
-.PHONY: all default release assert sanitize clean
+.PHONY: all default release assert sanitize check clean
 .SUFFIXES:
 
 # We default to release
@@ -65,6 +65,10 @@ sanitize: $(BIN_DIR)
 	$(call warn, Sanitizers are turned on so performance will be impacted in this build.)
 	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(SANITIZE) $(LIBS) -o $(BIN_DIR)/$(SAN_EXE)$(EXE_EXT)
 	$(call success, Binary $(BIN_DIR)/$(SAN_EXE) compiled)
+
+check: sanitize release
+	./$(BIN_DIR)/$(SAN_EXE)$(EXE_EXT) perft-test
+	./$(EXE)$(EXE_EXT) bench
 
 $(BIN_DIR):
 	$(call log, Making directory: $(BIN_DIR))
