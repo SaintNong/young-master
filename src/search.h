@@ -46,6 +46,10 @@
 // Delta pruning
 #define DELTA_PRUNE_MARGIN 150
 
+// Static exchange evaluation pruning
+#define SEE_PRUNING_DEPTH 8
+#define SEE_PRUNING_MARGIN 100
+
 // Internal iterative reductions
 #define IIR_DEPTH 3
 

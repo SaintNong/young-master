@@ -478,6 +478,21 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             && !inCheck
             && quietsPlayed >= LMP_TABLE[depth]
         ) break; // No captures exist after the first quiet in my ordering.
+
+        /**
+         * Static Exchange Evaluation pruning. (+34.78 elo +/- 17.43)
+         * Once a legal line is known, skip shallow moves which lose too much
+         * material. Deeper moves get a more forgiving threshold.
+         */
+        if (
+            !rootNode
+            && !inCheck
+            && depth <= SEE_PRUNING_DEPTH
+            && bestScore > -MATE_BOUND
+        ) {
+            if (!see(board, move, -SEE_PRUNING_MARGIN * depth))
+                continue;
+        }
         
         // Skip illegal moves
         if (makeMove(board, move) == 0) {

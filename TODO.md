@@ -8,7 +8,6 @@
 - Delta pruning (maybe can skip?)
 - Static Exchange Evaluation
     - SEE move ordering
-    - SEE pruning in search
 - Continuation history
 - Staged movegen
 - History pruning (maybe)
