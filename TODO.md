@@ -3,14 +3,12 @@
 ## Present
 
 ### Search
-- Futility pruning
+- Forward futility pruning
 - Razoring (maybe can skip?)
-- Delta pruning (maybe can skip?)
-- Static Exchange Evaluation
-    - SEE move ordering
-    - SEE pruning in quiesce
-    - SEE pruning in search
+- Singular extensions
+- SEE move ordering
 - Continuation history
+- Correction history
 - Staged movegen
 - History pruning (maybe)
 - Doing reductions for captures
@@ -21,15 +19,13 @@
 - Evaluation tuning (might skip for NNUE)
 
 ### Misc
-- Get windows working so we can get CCRL rated
 - Get an openbench workflow working with maybe gcloud
 
 ## Far Future
 - Rethinking the hash replacement scheme
 - NNUE (maybe once we hit 2800?)
-- Null move research
-- Improving heuristic
+- Null-move pruning research and tuning
+- Heuristic improvements
 - Probcut
 - Capture history
 - Search tuning w/ SPSA
-- Correction history
