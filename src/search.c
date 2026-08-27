@@ -13,6 +13,7 @@
 #include "move.h"
 #include "movepicker.h"
 #include "hashtable.h"
+#include "see.h"
 #include "uci.h"
 #include "utils.h"
 
@@ -218,6 +219,13 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
             // Prune the move since the best case + margin is still below alpha
             continue;
         }
+
+        /**
+         * Static Exchange Evaluation pruning. (+26.22 elo +/- 15.39)
+         * Skip captures which SEE estimates will lose material.
+         */
+        if (!see(board, move, 0))
+            continue;
         
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {

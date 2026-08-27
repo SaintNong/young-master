@@ -14,6 +14,7 @@
 #include "perft.h"
 #include "eval.h"
 #include "bench.h"
+#include "see_test.h"
 
 #define NAME_VERSION_STRING WHT NAME " [" CYN VERSION WHT "]" CRESET
 void welcome() {
@@ -60,6 +61,9 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[1], "perft-test") == 0) {
             return perftSuite() ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+        if (strcmp(argv[1], "see-test") == 0) {
+            return seeTestSuite() ? EXIT_SUCCESS : EXIT_FAILURE;
         }
     }
 

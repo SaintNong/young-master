@@ -25,12 +25,6 @@
 /* -------------------------------------------------------------------------- */
 // these currently aren't tuned because I unfortunately don't have a server farm
 
-// Used in both SEE and Delta pruning, includes EMPTY = 0
-static const int SEE_PIECE_VALUES[NB_PIECES + 1] = {
-    100, 300, 310, 500, 900, 0, 
-    0 // Empty
-};
-
 // Late move pruning formula
 #define LMP_DEPTH 5
 #define LMP_BASE 3

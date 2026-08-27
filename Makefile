@@ -68,6 +68,7 @@ sanitize: $(BIN_DIR)
 
 check: sanitize release
 	./$(BIN_DIR)/$(SAN_EXE)$(EXE_EXT) perft-test
+	./$(BIN_DIR)/$(SAN_EXE)$(EXE_EXT) see-test
 	./$(EXE)$(EXE_EXT) bench
 
 $(BIN_DIR):
