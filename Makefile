@@ -8,22 +8,18 @@ include functions.mk
 CC = clang
 SRC_DIR = src
 BIN_DIR = bin
-SPRT_DIR = $(BIN_DIR)/sprt
 
 # Source file and target
 SRC = $(wildcard $(SRC_DIR)/*.c)
 EXE = Young_Master
 
 # Git commit hash and short timestamp for auto-versioning
-GIT_HASH := $(shell git rev-parse --short HEAD)
+GIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DEF_COMMIT_HASH := -DGIT_HASH=\""$(GIT_HASH)"\"
 
 # Sanitized and assertion binaries
 SAN_EXE := $(EXE)-sanitized
 DBG_EXE := $(EXE)-assert
-
-# SPRT binary
-SPRT_EXE := $(EXE)-$(SPRT_NAME)
 
 # Compiler flags
 OPTIMIZE = -O3 -flto -march=native
@@ -43,53 +39,32 @@ CFLAGS = -std=c11 $(OPTIMIZE) $(POPCNT) $(WARN) $(DEF_COMMIT_HASH)
 ### Targets
 ### ============================================================================
 
-.PHONY: all default release assert sanitize sprt clean
+.PHONY: all default release assert sanitize clean
+.SUFFIXES:
 
 # We default to release
 default: release
+all: release
 
 # Fastest build
 release: $(BIN_DIR)
 	$(call header, Release Build: $(EXE))
-	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(EXE)
+	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(EXE)$(EXE_EXT)
 	$(call success, Binary $(EXE) compiled)
 
 # Builds with asserts on
 assert: $(BIN_DIR)
 	$(call header, Debug Build: $(DBG_EXE))
 	$(call warn, Assertions are turned on so performance will be impacted in this build.)
-	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(BIN_DIR)/$(DBG_EXE)
+	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(LIBS) -o $(BIN_DIR)/$(DBG_EXE)$(EXE_EXT)
 	$(call success, Binary $(BIN_DIR)/$(DBG_EXE) compiled)
 
 # Builds with sanitizers
-# NOTE: (Not supported on Windows)
 sanitize: $(BIN_DIR)
-ifeq ($(OS),Windows_NT)
-	$(call warn, This recipe is not supported on Windows)
-else
 	$(call header, Sanitized Build: $(SAN_EXE))
 	$(call warn, Sanitizers are turned on so performance will be impacted in this build.)
-	$(CC) $(SRC) $(NDEBUG) $(SANITIZE) $(CFLAGS) $(LIBS) -o $(BIN_DIR)/$(SAN_EXE)
+	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(SANITIZE) $(LIBS) -o $(BIN_DIR)/$(SAN_EXE)$(EXE_EXT)
 	$(call success, Binary $(BIN_DIR)/$(SAN_EXE) compiled)
-endif
-
-# Builds binary for sprt testing vs the last version
-# NOTE: (Not supported on Windows)
-sprt: $(SPRT_DIR)
-ifeq ($(OS),Windows_NT)
-	$(call warn, This recipe is not supported on Windows)
-else
-	$(call header, SPRT Build: $(SPRT_EXE))
-	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(SPRT_DIR)/$(SPRT_EXE)
-	$(call success, Binary $(SPRT_DIR)/$(SPRT_EXE) compiled)
-	$(call log, Starting SPRT Test)
-	./sprt.sh
-	$(call success, SPRT Test finished without errors)
-endif
-
-$(SPRT_DIR):
-	$(call log, Making directory: $(SPRT_DIR))
-	$(MKDIR) $(SPRT_DIR)
 
 $(BIN_DIR):
 	$(call log, Making directory: $(BIN_DIR))
@@ -97,12 +72,6 @@ $(BIN_DIR):
 
 clean:
 	$(call log, Cleaning...)
-ifneq ($(OS),Windows_NT)
-	$(RM) $(BIN_DIR)/$(EXE)
-	$(RM) $(BIN_DIR)/$(SAN_EXE)
-	$(RM) $(BIN_DIR)/$(DBG_EXE)
-else
-	@if exist "$(BIN_DIR)\$(EXE).exe" del /q "$(BIN_DIR)\$(EXE).exe"
-	@if exist "$(BIN_DIR)\$(SAN_EXE).exe" del /q "$(BIN_DIR)\$(SAN_EXE).exe"
-	@if exist "$(BIN_DIR)\$(DBG_EXE).exe" del /q "$(BIN_DIR)\$(DBG_EXE).exe"
-endif
+	-$(RM) $(EXE)$(EXE_EXT)
+	-$(RM) $(BIN_DIR)/$(SAN_EXE)$(EXE_EXT)
+	-$(RM) $(BIN_DIR)/$(DBG_EXE)$(EXE_EXT)

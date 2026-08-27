@@ -3,6 +3,9 @@
 
 set -e
 
+# Resolve paths relative to this script.
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 ### ============================================================================
 ### SPRT Config
 ### ============================================================================
@@ -17,8 +20,8 @@ SPRT_BETA="0.10"
 ### ============================================================================
 
 # Directories
-BIN_DIR="bin/sprt"
-LOG_DIR="logs"
+BIN_DIR="$SCRIPT_DIR/bin/sprt"
+LOG_DIR="$SCRIPT_DIR/logs"
 
 mkdir -p "$LOG_DIR"
 
@@ -26,22 +29,43 @@ mkdir -p "$LOG_DIR"
 CONC=14
 ROUNDS=10000
 GAMES_PER_ROUND=2
-OPENINGS_BOOK="../books/8mvs.epd"
+OPENINGS_BOOK="$SCRIPT_DIR/../books/8mvs.epd"
 
 # Engine settings
-ENGINE_NAME="Young Master"
 TIME_CONTROL="10+0.1"
 HASH_SIZE=64
 
-# Get the latest version, and previous version to test
-LATEST=$(ls -t "$BIN_DIR/"* | head -n1)
-PREVIOUS=$(ls -t "$BIN_DIR/"* | tail -n +2 | head -n1)
+# Check prerequisites.
+command -v make >/dev/null || { echo "make is required" >&2; exit 1; }
+command -v fastchess >/dev/null || { echo "fastchess is required" >&2; exit 1; }
+if [[ ! -f "$OPENINGS_BOOK" ]]; then
+    echo "Opening book not found: $OPENINGS_BOOK" >&2
+    exit 1
+fi
+
+# Select the previous staged binary.
+mapfile -t PREVIOUS_ENGINES < <(
+    find "$BIN_DIR" -maxdepth 1 -type f -name 'Young_Master-*' \
+        -printf '%T@ %p\n' 2>/dev/null | sort -nr | cut -d' ' -f2-
+)
+if (( ${#PREVIOUS_ENGINES[@]} < 1 )); then
+    echo "No previous engine found in $BIN_DIR" >&2
+    echo "Run an SPRT once there is an earlier staged engine to compare against." >&2
+    exit 1
+fi
+PREVIOUS="${PREVIOUS_ENGINES[0]}"
+
+# Build and stage the current release.
+make -C "$SCRIPT_DIR" release
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LATEST="$BIN_DIR/Young_Master-$TIMESTAMP"
+cp "$SCRIPT_DIR/Young_Master" "$LATEST"
+chmod +x "$LATEST"
 
 # Generate names
 LATEST_NAME="$(basename "$LATEST") (latest)"
 PREVIOUS_NAME="$(basename "$PREVIOUS") (previous)"
 TEST_NAME="${LATEST_NAME} vs ${PREVIOUS_NAME}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="$LOG_DIR/sprt_${TEST_NAME}_${TIMESTAMP}.log"
 
 
