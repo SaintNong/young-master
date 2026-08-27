@@ -700,7 +700,8 @@ int aspirationWindow(Engine *engine, PV *pv, int depth, int lastScore) {
             int score = search(engine, pv, alpha, beta, depth, 0, false);
             
             // Break out quickly if we're out of time
-            if (getTime() > engine->limits.hardBoundTime)
+            if (engine->limits.searchType == LIMIT_TIME &&
+                getTime() > engine->limits.hardBoundTime)
                 return SEARCH_STOPPED_SCORE;
             
             // Return our score if it was in the window

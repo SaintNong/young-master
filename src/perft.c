@@ -99,7 +99,7 @@ void perftBench(Board *board, int depth) {
 }
 
 // Runs a perft test suite on a bunch of positions
-void perftSuite() {
+bool perftSuite(void) {
     Board board;
 
     int totalTime = 0;
@@ -147,4 +147,6 @@ void perftSuite() {
 
     double mnps = calculateMnps(totalNodes, totalTime);
     printf("       Speed: %-6.2f Meganodes/s\n", mnps);
+
+    return totalPassed == PERFT_POSITION_COUNT;
 }
