@@ -49,21 +49,21 @@ all: release
 # Fastest build
 release: $(BIN_DIR)
 	$(call header, Release Build: $(EXE))
-	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LIBS) -o $(EXE)$(EXE_EXT)
+	$(CC) $(SRC) $(NDEBUG) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $(EXE)$(EXE_EXT)
 	$(call success, Binary $(EXE) compiled)
 
 # Builds with asserts on
 assert: $(BIN_DIR)
 	$(call header, Debug Build: $(DBG_EXE))
 	$(call warn, Assertions are turned on so performance will be impacted in this build.)
-	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(LIBS) -o $(BIN_DIR)/$(DBG_EXE)$(EXE_EXT)
+	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(LDFLAGS) $(LIBS) -o $(BIN_DIR)/$(DBG_EXE)$(EXE_EXT)
 	$(call success, Binary $(BIN_DIR)/$(DBG_EXE) compiled)
 
 # Builds with sanitizers
 sanitize: $(BIN_DIR)
 	$(call header, Sanitized Build: $(SAN_EXE))
 	$(call warn, Sanitizers are turned on so performance will be impacted in this build.)
-	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(SANITIZE) $(LIBS) -o $(BIN_DIR)/$(SAN_EXE)$(EXE_EXT)
+	$(CC) $(SRC) $(CFLAGS) -UNDEBUG $(SANITIZE) $(LDFLAGS) $(LIBS) -o $(BIN_DIR)/$(SAN_EXE)$(EXE_EXT)
 	$(call success, Binary $(BIN_DIR)/$(SAN_EXE) compiled)
 
 check: sanitize release
