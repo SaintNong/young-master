@@ -660,7 +660,13 @@ void printCurrentMove(int depth, Move move, int movesPlayed) {
 }
 
 // Prints search information in UCI format
-static void printSearchInfo(int depth, int score, Engine *engine) {
+static void printSearchInfo(
+    int depth,
+    int score,
+    int bound,
+    const PV *pv,
+    Engine *engine
+) {
     printf("info depth %d ", depth);
 
     // Print max selective depth reached (if different from depth)
@@ -676,6 +682,11 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
         printf("score cp %d ", score);
     }
 
+    if (bound == BOUND_LOWER)
+        printf("lowerbound ");
+    else if (bound == BOUND_UPPER)
+        printf("upperbound ");
+
     // Print nodes searched
     printf("nodes %" PRIu64 " ", engine->searchStats.nodes);
 
@@ -685,7 +696,6 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
 
     // Print PV
     printf("pv ");
-    PV *pv = &engine->pv;
     for (int i = 0; i < pv->length; i++) {
         printMove(pv->moves[i], false);
         printf(" ");
@@ -693,6 +703,28 @@ static void printSearchInfo(int depth, int score, Engine *engine) {
 
     printf("\n");
     fflush(stdout);
+}
+
+// Follow legal hash moves to recover a PV for UCI reporting.
+static void recoverHashPV(const Board *root, Move firstMove, PV *pv) {
+    Board board = *root;
+
+    pv->length = 0;
+
+    Move move = firstMove;
+    while (move != NO_MOVE && pv->length < MAX_PLY) {
+        if (makeMove(&board, move) == 0) {
+            undoMove(&board, move);
+            break;
+        }
+
+        pv->moves[pv->length++] = move;
+
+        if (isDraw(&board, pv->length))
+            break;
+
+        move = probeHashMove(board.hash);
+    }
 }
 
 /**
@@ -767,12 +799,12 @@ Move iterativeDeepening(Engine *engine) {
         if (score != SEARCH_STOPPED_SCORE)
             rootScore = score;
 
-        // Update our PV if a full line can be recovered from this search.
+        // Keep any PV produced by this iteration, including a partial one.
         if (currentPV.length > 0)
             engine->pv = currentPV;
 
         // Print this iteration's info string
-        printSearchInfo(depth, rootScore, engine);
+        printSearchInfo(depth, rootScore, BOUND_EXACT, &engine->pv, engine);
 
         // Turn on currmove reporting after some time has passed
         if (getTime() > engine->limits.searchStartTime + REPORT_CURRMOVE_AFTER)
@@ -780,13 +812,32 @@ Move iterativeDeepening(Engine *engine) {
     }
     engine->searchState = SEARCH_STOPPED;
 
-    // Take best move from hash
+    // Prefer the root hash move so work from partial iterations is retained.
+    Move bestMove = engine->pv.moves[0];
     Move hashMove = probeHashMove(engine->board.hash);
     if (hashMove != NO_MOVE)
-        return hashMove;
-    
-    // Fallback to PV
-    return engine->pv.moves[0];
+        bestMove = hashMove;
+
+    // If the selected move changed, report a matching PV recovered from the hash.
+    if (engine->pv.length == 0 || bestMove != engine->pv.moves[0]) {
+        PV hashPV;
+        Move storedMove;
+        int hashDepth, hashScore, hashBound;
+
+        if (hashTableProbe(
+            engine->board.hash,
+            0,
+            &storedMove,
+            &hashDepth,
+            &hashScore,
+            &hashBound
+        ) == PROBE_SUCCESS) {
+            recoverHashPV(&engine->board, bestMove, &hashPV);
+            printSearchInfo(hashDepth, hashScore, hashBound, &hashPV, engine);
+        }
+    }
+
+    return bestMove;
 }
 
 // Gets the engine ready to search, with given limits.
