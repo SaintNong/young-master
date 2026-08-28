@@ -5,7 +5,6 @@
 ### Search
 - Forward futility pruning
 - Razoring (maybe can skip?)
-- Singular extensions
 - SEE move ordering
 - Continuation history
 - Correction history

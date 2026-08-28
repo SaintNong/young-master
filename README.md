@@ -61,6 +61,7 @@ make release CC=clang LDFLAGS=-fuse-ld=lld
   - Null move pruning
   - Reverse futility pruning
   - Internal iterative reductions
+  - Singular extensions with multi-cut and double extensions
   - Late move pruning
   - Late move reductions
   - Delta pruning (move based)

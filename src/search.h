@@ -53,6 +53,10 @@
 // Internal iterative reductions
 #define IIR_DEPTH 3
 
+// Singular extensions
+#define SINGULAR_EXTENSION_DEPTH 6
+#define SINGULAR_TT_DEPTH_MARGIN 3
+
 // Aspiration windows
 #define ASPIRATION_START_SIZE 10
 #define ASPIRATION_SCALE_FACTOR 2
