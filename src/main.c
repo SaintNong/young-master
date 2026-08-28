@@ -50,6 +50,26 @@ void initialise() {
     initEvaluation();
 }
 
+static int evalFile(const char *path, long limit) {
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        perror("Unable to open evaluation file");
+        return EXIT_FAILURE;
+    }
+
+    Board board;
+    char fen[4096];
+    long index = 0;
+    while ((limit <= 0 || index < limit) && fgets(fen, sizeof(fen), file) != NULL) {
+        parseFen(&board, fen);
+        printf("EVAL %ld %d\n", index, evaluate(&board));
+        index++;
+    }
+
+    fclose(file);
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char *argv[]) {
     welcome();
     initialise();
@@ -64,6 +84,10 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(argv[1], "see-test") == 0) {
             return seeTestSuite() ? EXIT_SUCCESS : EXIT_FAILURE;
+        }
+        if (strcmp(argv[1], "eval-file") == 0 && argc >= 3) {
+            long limit = argc >= 4 ? strtol(argv[3], NULL, 10) : 0;
+            return evalFile(argv[2], limit);
         }
     }
 
