@@ -60,10 +60,12 @@ int evaluatePawns(Board *board, int color) {
     U64 pawns = board->pieces[PAWN] & board->colors[color];
     U64 enemyPawns = board->pieces[PAWN] & board->colors[!color];
     U64 ownPawns = pawns;
+    U64 pawnAttackMap = 0ULL;
     
     // Loop through all the pawns of this side
     while (pawns) {
         int square = poplsb(&pawns);
+        pawnAttackMap |= pawnAttacks(color, square);
         
         // Material + PSQT
         score += MATERIAL_PSQT[color][PAWN][square];
@@ -85,6 +87,23 @@ int evaluatePawns(Board *board, int color) {
         // A pawn is doubled if friendly pawns exist ahead on its file
         if (ownPawns & FORWARD_FILE_MASKS[color][square])
             score += DOUBLED_PAWN_VALUE;
+
+    }
+
+    // One score per adjacent pair.
+    U64 phalanx = ownPawns & ((ownPawns & ~0x0101010101010101ULL) >> 1);
+    while (phalanx) {
+        int square = poplsb(&phalanx);
+        int relativeRank = color == WHITE ? rankOf(square) : 7 - rankOf(square);
+        score += PHALANX_PAWN_VALUES[relativeRank];
+    }
+
+    // Pawns covered by a friendly pawn.
+    U64 defended = ownPawns & pawnAttackMap;
+    while (defended) {
+        int square = poplsb(&defended);
+        int relativeRank = color == WHITE ? rankOf(square) : 7 - rankOf(square);
+        score += DEFENDED_PAWN_VALUES[relativeRank];
     }
 
     return score;

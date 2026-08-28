@@ -29,7 +29,7 @@ mkdir -p "$LOG_DIR"
 CONC=14
 ROUNDS=10000
 GAMES_PER_ROUND=2
-OPENINGS_BOOK="$SCRIPT_DIR/../books/8mvs.epd"
+OPENINGS_BOOK="$SCRIPT_DIR/../books/8moves_v3.pgn"
 
 # Engine settings
 TIME_CONTROL="10+0.1"
@@ -43,17 +43,11 @@ if [[ ! -f "$OPENINGS_BOOK" ]]; then
     exit 1
 fi
 
-# Select the previous staged binary.
-mapfile -t PREVIOUS_ENGINES < <(
-    find "$BIN_DIR" -maxdepth 1 -type f -name 'Young_Master-*' \
-        -printf '%T@ %p\n' 2>/dev/null | sort -nr | cut -d' ' -f2-
-)
-if (( ${#PREVIOUS_ENGINES[@]} < 1 )); then
-    echo "No previous engine found in $BIN_DIR" >&2
-    echo "Run an SPRT once there is an earlier staged engine to compare against." >&2
+PREVIOUS="${PREVIOUS_BINARY:-$BIN_DIR/Young_Master-isolated-doubled-stable}"
+if [[ ! -f "$PREVIOUS" ]]; then
+    echo "Previous engine not found: $PREVIOUS" >&2
     exit 1
 fi
-PREVIOUS="${PREVIOUS_ENGINES[0]}"
 
 # Build and stage the current release.
 make -C "$SCRIPT_DIR" release
@@ -86,7 +80,7 @@ FASTCHESS_CMD=(
     "option.Hash=$HASH_SIZE"
     -engine "cmd=$PREVIOUS" "name=$PREVIOUS_NAME" "tc=$TIME_CONTROL"
     "option.Hash=$HASH_SIZE"
-    -openings "file=$OPENINGS_BOOK" format=epd order=random
+    -openings "file=$OPENINGS_BOOK" format=pgn order=random
     -sprt "elo0=$SPRT_ELO0" "elo1=$SPRT_ELO1" "alpha=$SPRT_ALPHA" "beta=$SPRT_BETA" model=normalized
     -rounds "$ROUNDS"
     -games "$GAMES_PER_ROUND"
