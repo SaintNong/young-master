@@ -39,7 +39,7 @@ CFLAGS = -std=c11 $(OPTIMIZE) $(POPCNT) $(WARN) $(DEF_COMMIT_HASH)
 ### Targets
 ### ============================================================================
 
-.PHONY: all default release assert sanitize check clean
+.PHONY: all default release assert sanitize check tune check-tuner-parity clean
 .SUFFIXES:
 
 # We default to release
@@ -70,6 +70,20 @@ check: sanitize release
 	./$(BIN_DIR)/$(SAN_EXE)$(EXE_EXT) perft-test
 	./$(BIN_DIR)/$(SAN_EXE)$(EXE_EXT) see-test
 	./$(EXE)$(EXE_EXT) bench
+
+TUNER_ROOT ?= ../texel-tuner
+TUNER = $(TUNER_ROOT)/src/tuner
+TUNING_SOURCES ?= $(TUNER_ROOT)/sources.csv
+DATASET ?= ../data/quiet-labeled.v7.epd
+PARITY_LIMIT ?= 0
+
+tune:
+	$(MAKE) -C $(TUNER_ROOT)/src
+	cd $(TUNER_ROOT) && ./src/tuner "$(abspath $(TUNING_SOURCES))" "$(abspath src/eval_weights.h)"
+
+check-tuner-parity: release
+	$(MAKE) -C $(TUNER_ROOT)/src
+	./scripts/check_tuner_parity.sh "./$(EXE)$(EXE_EXT)" "$(TUNER)" "$(DATASET)" "$(PARITY_LIMIT)"
 
 $(BIN_DIR):
 	$(call log, Making directory: $(BIN_DIR))

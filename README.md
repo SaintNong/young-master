@@ -77,10 +77,15 @@ make release CC=clang LDFLAGS=-fuse-ld=lld
   - Killer moves heuristic (2 killers)
   - History heuristic with malus
 
-- **Evaluation (Manually tuned)**
+- **Evaluation**
   - Tapered evaluation
   - Piece square tables and material
   - Mobility
+  - Passed pawns
+  - Pawn structure: isolated, doubled, phalanx, and defended pawns
+  - Tuned using [texel-tuner](https://github.com/GediminasMasaitis/texel-tuner)
+
+[Tuning instructions](scripts/README.md)
 
 ## Future features
 - A TODO list for new features to be implemented is [here](TODO.md).

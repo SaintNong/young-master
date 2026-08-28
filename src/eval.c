@@ -50,20 +50,60 @@ int taper(int score, int phase) {
 
 // Combination of material and piece square tables in one place.
 static int MATERIAL_PSQT[2][NB_PIECES][64];
+static U64 PASSED_PAWN_MASKS[2][64];
+static U64 ADJACENT_FILE_MASKS[8];
+static U64 FORWARD_FILE_MASKS[2][64];
 
 // Evaluates how well placed the pawns are for this color.
 int evaluatePawns(Board *board, int color) {
     int score = 0;
     U64 pawns = board->pieces[PAWN] & board->colors[color];
+    U64 enemyPawns = board->pieces[PAWN] & board->colors[!color];
+    U64 ownPawns = pawns;
+    U64 pawnAttackMap = 0ULL;
     
     // Loop through all the pawns of this side
     while (pawns) {
         int square = poplsb(&pawns);
+        pawnAttackMap |= pawnAttacks(color, square);
         
         // Material + PSQT
         score += MATERIAL_PSQT[color][PAWN][square];
 
-        /** TODO: pawn structure goes here */
+        // Check if this pawn is passed
+        if (!(PASSED_PAWN_MASKS[color][square] & enemyPawns)) {
+            int relativeRank = color == WHITE
+                ? rankOf(square)
+                : 7 - rankOf(square);
+            if (relativeRank >= 1 && relativeRank <= 6)
+                score += PASSED_PAWN_VALUES[relativeRank - 1];
+        }
+
+        // Isolated: no friendly pawns exist adjacent to us
+        int file = fileOf(square);
+        if (!(ownPawns & ADJACENT_FILE_MASKS[file]))
+            score += ISOLATED_PAWN_VALUE;
+
+        // Doubled: friendly pawns exist ahead of us
+        if (ownPawns & FORWARD_FILE_MASKS[color][square])
+            score += DOUBLED_PAWN_VALUE;
+
+    }
+
+    // Phalanx: a friendly pawn exists on the same rank and adjacent file.
+    U64 phalanx = ownPawns & ((ownPawns & ~0x0101010101010101ULL) >> 1);
+    while (phalanx) {
+        int square = poplsb(&phalanx);
+        int relativeRank = color == WHITE ? rankOf(square) : 7 - rankOf(square);
+        score += PHALANX_PAWN_VALUES[relativeRank];
+    }
+
+    // Defended: a friendly pawn attacks us from the rank behind.
+    U64 defended = ownPawns & pawnAttackMap;
+    while (defended) {
+        int square = poplsb(&defended);
+        int relativeRank = color == WHITE ? rankOf(square) : 7 - rankOf(square);
+        score += DEFENDED_PAWN_VALUES[relativeRank];
     }
 
     return score;
@@ -185,8 +225,45 @@ int evaluateKing(Board *board, int color) {
 /**
  * Initialises the evaluation by initialising MATERIAL_PSQT, an array of the sum
  * of PSQT and material, with squares mirrored for white.
+ *
+ * Also inits passed pawn masks.
  */
 void initEvaluation() {
+    // Mask of this file and adjacent, for isolated pawn detection
+    for (int file = 0; file < 8; file++) {
+        U64 fileMask = 0x0101010101010101ULL << file;
+        ADJACENT_FILE_MASKS[file] = (file > 0 ? fileMask >> 1 : 0ULL)
+            | (file < 7 ? fileMask << 1 : 0ULL);
+    }
+
+    for (int color = WHITE; color <= BLACK; color++) {
+        int rankStep = color == WHITE ? 1 : -1;
+        for (int sq = 0; sq < 64; sq++) {
+
+            // Mask of possible blockers which prevent this pawn being passed
+            U64 mask = 0ULL;
+            int pawnFile = fileOf(sq);
+            for (int rank = rankOf(sq) + rankStep;
+                 rank >= 0 && rank < 8;
+                 rank += rankStep) {
+                for (int file = pawnFile - 1; file <= pawnFile + 1; file++) {
+                    if (file >= 0 && file < 8)
+                        setBit(&mask, squareFrom(file, rank));
+                }
+            }
+            PASSED_PAWN_MASKS[color][sq] = mask;
+
+            // Squares on this file in front of this pawn
+            U64 forwardMask = 0ULL;
+            int file = fileOf(sq);
+            for (int rank = rankOf(sq) + rankStep;
+                 rank >= 0 && rank < 8;
+                 rank += rankStep)
+                setBit(&forwardMask, squareFrom(file, rank));
+            FORWARD_FILE_MASKS[color][sq] = forwardMask;
+        }
+    }
+
     for (int piece = PAWN; piece <= KING; piece++) {
         for (int sq = 0; sq < 64; sq++) {
             int mat = MATERIAL_VALUES[piece];

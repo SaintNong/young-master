@@ -9,14 +9,13 @@
 - SEE move ordering
 - Continuation history
 - Correction history
+- Capture history
 - Staged movegen
 - History pruning (maybe)
 - Doing reductions for captures
 
 ### Evaluation
 - Mopup?
-- Passed pawns + pawn structure (might skip for NNUE)
-- Evaluation tuning (might skip for NNUE)
 
 ### Misc
 - Get an openbench workflow working with maybe gcloud
@@ -27,5 +26,4 @@
 - Null-move pruning research and tuning
 - Heuristic improvements
 - Probcut
-- Capture history
 - Search tuning w/ SPSA
