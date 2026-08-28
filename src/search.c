@@ -197,7 +197,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     MovePicker picker;
 
     // Don't use hash move because it's usually not helpful in qsearch (i think)
-    initMovePicker(&picker, board, NO_MOVE);
+    initMovePicker(&picker, NO_MOVE, ply);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
@@ -222,7 +222,7 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
 
         /**
          * Static Exchange Evaluation pruning. (+26.22 elo +/- 15.39)
-         * Skip captures which SEE estimates will lose material.
+         * Skip qsearch captures which SEE estimates will lose material.
          */
         if (!see(board, move, 0))
             continue;
@@ -457,7 +457,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     // Create a move picker, which picks moves which look better first,
     // shortening our search by creating cutoffs.
     MovePicker picker;
-    initMovePicker(&picker, board, hashMove);
+    initMovePicker(&picker, hashMove, ply);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {

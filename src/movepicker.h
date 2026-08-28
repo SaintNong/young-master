@@ -39,5 +39,5 @@ void updateMoveHistory(Board *board, Move move, int depth, bool malus);
 void updateKillers(int ply, Move move);
 
 // Move picker
-void initMovePicker(MovePicker *picker, Board *board, Move hashMove);
+void initMovePicker(MovePicker *picker, Move hashMove, int ply);
 Move pickMove(MovePicker *picker, Board *board);

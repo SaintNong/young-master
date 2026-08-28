@@ -157,7 +157,7 @@ static int bestMoveIndex(MovePicker *picker) {
  */
 
 // Initialize the move picker
-void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
+void initMovePicker(MovePicker *picker, Move hashMove, int ply) {
     if (hashMove != NO_MOVE)
         picker->stage = STAGE_HASH_MOVE;
     else
@@ -168,8 +168,8 @@ void initMovePicker(MovePicker *picker, Board *board, Move hashMove) {
     picker->hashMove = hashMove;
 
     // Retrieve killers from table
-    picker->killerOne = killers[board->side][0];
-    picker->killerTwo = killers[board->side][1];
+    picker->killerOne = killers[0][ply];
+    picker->killerTwo = killers[1][ply];
     
     // Initialize all move scores to 0
     for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
