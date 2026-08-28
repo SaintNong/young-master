@@ -50,11 +50,13 @@ int taper(int score, int phase) {
 
 // Combination of material and piece square tables in one place.
 static int MATERIAL_PSQT[2][NB_PIECES][64];
+static U64 PASSED_PAWN_MASKS[2][64];
 
 // Evaluates how well placed the pawns are for this color.
 int evaluatePawns(Board *board, int color) {
     int score = 0;
     U64 pawns = board->pieces[PAWN] & board->colors[color];
+    U64 enemyPawns = board->pieces[PAWN] & board->colors[!color];
     
     // Loop through all the pawns of this side
     while (pawns) {
@@ -63,7 +65,14 @@ int evaluatePawns(Board *board, int color) {
         // Material + PSQT
         score += MATERIAL_PSQT[color][PAWN][square];
 
-        /** TODO: pawn structure goes here */
+        // Check if this pawn is passed
+        if (!(PASSED_PAWN_MASKS[color][square] & enemyPawns)) {
+            int relativeRank = color == WHITE
+                ? rankOf(square)
+                : 7 - rankOf(square);
+            if (relativeRank >= 1 && relativeRank <= 6)
+                score += PASSED_PAWN_VALUES[relativeRank - 1];
+        }
     }
 
     return score;
@@ -185,8 +194,27 @@ int evaluateKing(Board *board, int color) {
 /**
  * Initialises the evaluation by initialising MATERIAL_PSQT, an array of the sum
  * of PSQT and material, with squares mirrored for white.
+ *
+ * Also inits passed pawn masks.
  */
 void initEvaluation() {
+    for (int color = WHITE; color <= BLACK; color++) {
+        int rankStep = color == WHITE ? 1 : -1;
+        for (int sq = 0; sq < 64; sq++) {
+            U64 mask = 0ULL;
+            int pawnFile = fileOf(sq);
+            for (int rank = rankOf(sq) + rankStep;
+                 rank >= 0 && rank < 8;
+                 rank += rankStep) {
+                for (int file = pawnFile - 1; file <= pawnFile + 1; file++) {
+                    if (file >= 0 && file < 8)
+                        setBit(&mask, squareFrom(file, rank));
+                }
+            }
+            PASSED_PAWN_MASKS[color][sq] = mask;
+        }
+    }
+
     for (int piece = PAWN; piece <= KING; piece++) {
         for (int sq = 0; sq < 64; sq++) {
             int mat = MATERIAL_VALUES[piece];

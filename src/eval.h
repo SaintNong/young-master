@@ -38,7 +38,7 @@ static const int GAME_PHASE_INCREMENTS[NB_PIECES] = {
 
 #define PHASE_MAX 24
 
-/* Evaluation constants are generated separately from evaluator logic. */
+/* Import tuned eval constants */
 #include "eval_weights.h"
 
 // Evaluation public facing functions

@@ -50,6 +50,10 @@ void initialise() {
     initEvaluation();
 }
 
+/**
+ * Evaluates every position in a file; used to check for total evaluation parity
+ * between this engine and the texel tuner's C++ implementation.
+ */
 static int evalFile(const char *path, long limit) {
     FILE *file = fopen(path, "r");
     if (file == NULL) {

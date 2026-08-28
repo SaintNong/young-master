@@ -81,6 +81,7 @@ make release CC=clang LDFLAGS=-fuse-ld=lld
   - Tapered evaluation
   - Piece square tables and material
   - Mobility
+  - Passed pawns
   - Tuned using [texel-tuner](https://github.com/GediminasMasaitis/texel-tuner)
 
 [Tuning instructions](scripts/README.md)

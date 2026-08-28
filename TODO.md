@@ -16,7 +16,7 @@
 
 ### Evaluation
 - Mopup?
-- Passed pawns + pawn structure (might skip for NNUE)
+- Pawn structure (might skip for NNUE)
 
 ### Misc
 - Get an openbench workflow working with maybe gcloud
