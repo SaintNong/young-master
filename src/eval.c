@@ -51,12 +51,15 @@ int taper(int score, int phase) {
 // Combination of material and piece square tables in one place.
 static int MATERIAL_PSQT[2][NB_PIECES][64];
 static U64 PASSED_PAWN_MASKS[2][64];
+static U64 ADJACENT_FILE_MASKS[8];
+static U64 FORWARD_FILE_MASKS[2][64];
 
 // Evaluates how well placed the pawns are for this color.
 int evaluatePawns(Board *board, int color) {
     int score = 0;
     U64 pawns = board->pieces[PAWN] & board->colors[color];
     U64 enemyPawns = board->pieces[PAWN] & board->colors[!color];
+    U64 ownPawns = pawns;
     
     // Loop through all the pawns of this side
     while (pawns) {
@@ -73,6 +76,15 @@ int evaluatePawns(Board *board, int color) {
             if (relativeRank >= 1 && relativeRank <= 6)
                 score += PASSED_PAWN_VALUES[relativeRank - 1];
         }
+
+        // A pawn is isolated if no friendly pawns exist next to it
+        int file = fileOf(square);
+        if (!(ownPawns & ADJACENT_FILE_MASKS[file]))
+            score += ISOLATED_PAWN_VALUE;
+
+        // A pawn is doubled if friendly pawns exist ahead on its file
+        if (ownPawns & FORWARD_FILE_MASKS[color][square])
+            score += DOUBLED_PAWN_VALUE;
     }
 
     return score;
@@ -198,9 +210,18 @@ int evaluateKing(Board *board, int color) {
  * Also inits passed pawn masks.
  */
 void initEvaluation() {
+    // Mask of this file and adjacent, for isolated pawn detection
+    for (int file = 0; file < 8; file++) {
+        U64 fileMask = 0x0101010101010101ULL << file;
+        ADJACENT_FILE_MASKS[file] = (file > 0 ? fileMask >> 1 : 0ULL)
+            | (file < 7 ? fileMask << 1 : 0ULL);
+    }
+
     for (int color = WHITE; color <= BLACK; color++) {
         int rankStep = color == WHITE ? 1 : -1;
         for (int sq = 0; sq < 64; sq++) {
+
+            // Mask of possible blockers which prevent this pawn being passed
             U64 mask = 0ULL;
             int pawnFile = fileOf(sq);
             for (int rank = rankOf(sq) + rankStep;
@@ -212,6 +233,15 @@ void initEvaluation() {
                 }
             }
             PASSED_PAWN_MASKS[color][sq] = mask;
+
+            // Squares on this file in front of this pawn
+            U64 forwardMask = 0ULL;
+            int file = fileOf(sq);
+            for (int rank = rankOf(sq) + rankStep;
+                 rank >= 0 && rank < 8;
+                 rank += rankStep)
+                setBit(&forwardMask, squareFrom(file, rank));
+            FORWARD_FILE_MASKS[color][sq] = forwardMask;
         }
     }
 
