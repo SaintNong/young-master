@@ -70,6 +70,7 @@ typedef struct {
 typedef struct {
     Board board;
     PV pv;
+    Move excludedMoves[MAX_PLY];
     SearchInfo searchStats;
     SearchLimits limits;
     SearchState searchState;

@@ -285,6 +285,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     Board *board = &engine->board;
     PV childPV;
     pv->length = 0;
+    Move excludedMove = engine->excludedMoves[ply];
 
     // Classify the node type
     const int rootNode = (ply == 0);
@@ -346,10 +347,14 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * very likely to cause a cutoff, saving us the time of move generation.
      * Very useful explanations here:
      * https://www.chessprogramming.org/Transposition_Table
-     */
+    */
     Move hashMove = NO_MOVE;
     int hashDepth, hashScore, hashFlag;
-    if (hashTableProbe(board->hash, ply, &hashMove, &hashDepth, &hashScore, &hashFlag) == PROBE_SUCCESS) {
+    bool hashHit = excludedMove == NO_MOVE && hashTableProbe(
+        board->hash, ply, &hashMove, &hashDepth, &hashScore, &hashFlag
+    ) == PROBE_SUCCESS;
+
+    if (hashHit) {
         /**
          * Do not cutoff at root node since we need a best move. We still grab
          * hash move on root node to speed up move ordering though.
@@ -398,6 +403,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (
         !pvNode
         && !inCheck
+        && excludedMove == NO_MOVE
         && depth <= REVERSE_FUTILITY_DEPTH
     ) {
         int score = eval - REVERSE_FUTILITY_MARGIN * depth;
@@ -416,6 +422,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
     if (
         !pvNode
         && !inCheck
+        && excludedMove == NO_MOVE
         && eval >= beta
         && depth >= NULL_MOVE_PRUNING_DEPTH
         && !nullMoveIsBad(board) // Don't do null moves when we only have pawns
@@ -443,7 +450,11 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * to reduce them to save time to prioritize more important nodes.
      * https://www.chessprogramming.org/Internal_Iterative_Reductions
      */
-    if (!inCheck && depth >= IIR_DEPTH && (pvNode || cutNode) && hashMove == NO_MOVE)
+    if (!inCheck
+        && excludedMove == NO_MOVE
+        && depth >= IIR_DEPTH
+        && (pvNode || cutNode)
+        && hashMove == NO_MOVE)
         depth--;
 
     // Since we couldn't get a fast return, therefore must search the position.
@@ -461,6 +472,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
+        // Leave this move out while checking whether the hash move is unique.
+        if (move == excludedMove)
+            continue;
+
         /**
          * Late move pruning. (+61.42 elo +/- 17.56)
          * The idea of late move pruning is that at low depths, the quiet moves
@@ -487,6 +502,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         if (
             !rootNode
             && !inCheck
+            && move != hashMove
             && depth <= SEE_PRUNING_DEPTH
             && bestScore > -MATE_BOUND
         ) {
@@ -501,6 +517,47 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         }
         movesPlayed++;
         if (IsQuiet(move)) quietsPlayed++;
+
+        int extension = 0;
+
+        /**
+         * Singular extension. (+14.64 elo +/- 7.97)
+         * A strong hash move may be the only good move in the position. Search
+         * all other moves at half depth; if they all fail low, give the hash
+         * move one extra ply.
+         * https://www.chessprogramming.org/Singular_Extensions
+         */
+        if (
+            !rootNode
+            && !inCheck
+            && excludedMove == NO_MOVE
+            && depth >= SINGULAR_EXTENSION_DEPTH
+            && move == hashMove
+            && hashHit
+            && hashDepth >= depth - SINGULAR_TT_DEPTH_MARGIN
+            && (hashFlag & BOUND_LOWER)
+            && !isMateScore(hashScore)
+        ) {
+            int singularBeta = MAX(hashScore - depth, -MATE_SCORE);
+            int singularDepth = (depth - 1) / 2;
+
+            // Search this position again without the hash move.
+            undoMove(board, move);
+            engine->excludedMoves[ply] = move;
+            int singularScore = search(engine, &childPV, singularBeta - 1, singularBeta, singularDepth, ply, cutNode);
+            engine->excludedMoves[ply] = NO_MOVE;
+
+            if (engine->searchState == SEARCH_STOPPED)
+                return SEARCH_STOPPED_SCORE;
+
+            // Reapply the hash move we removed for normal search
+            makeMove(board, move);
+
+            if (singularScore < singularBeta)
+                extension = 1;
+        }
+
+        int newDepth = depth - 1 + extension;
 
         /**
          * At high depths we report the current root move that's being searched.
@@ -519,7 +576,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
         int score;
         if (movesPlayed == 1) {
             // Full window search for the first move
-            score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1, false);
+            score = -search(engine, &childPV, -beta, -alpha, newDepth, ply + 1, false);
         } else {
 
             /**
@@ -535,7 +592,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             bool isKillerMove = (move == picker.killerOne || move == picker.killerTwo);
 
             // Compute depth reduction for LMR
-            int reducedDepth = depth - 1;
+            int reducedDepth = newDepth;
             if (IsQuiet(move) && !inCheck && !isKillerMove) {
                 // Base depth and move-count based reduction
                 int reduction = LMR_TABLE[depth][movesPlayed];
@@ -543,7 +600,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
                 // Apply the reduction then clamp so we don't accidentally extend
                 // or go into negative depths
                 reducedDepth -= reduction;
-                reducedDepth = clamp(reducedDepth, 0, depth - 1);
+                reducedDepth = clamp(reducedDepth, 0, newDepth);
             }
 
             // Null window search for non PV moves.
@@ -555,7 +612,7 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
              * its precise value.
              */
             if (score > alpha) {
-                score = -search(engine, &childPV, -beta, -alpha, depth - 1, ply + 1, !cutNode);
+                score = -search(engine, &childPV, -beta, -alpha, newDepth, ply + 1, !cutNode);
             }
         }
         undoMove(board, move);
@@ -632,6 +689,11 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
      * stalemate.
      */
     if (movesPlayed == 0) {
+        // The excluded move may have been the only legal move.
+        // That means this is not a real mate/stalemate but a fail low.
+        if (excludedMove != NO_MOVE)
+            return alpha;
+
         if (inCheck)
             return -MATE_SCORE + ply;
         else
@@ -640,7 +702,10 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
 
 
     // Store the results of this search in the hash table
-    hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
+    // Singular extension excluded searches answer an imaginary question,
+    // so their result must not replace the hash entry for the real position
+    if (excludedMove == NO_MOVE)
+        hashTableStore(board->hash, ply, bestMove, depth, bestScore, hashBound);
     
     // Propogate the best score we found up the tree.
     return bestScore;
@@ -850,6 +915,7 @@ void initSearch(Engine *engine, SearchLimits limits) {
     engine->searchStats.nodes = 0;
     engine->searchStats.searchStartTime = getTime();
     engine->searchStats.seldepth = 0;
+    memset(engine->excludedMoves, NO_MOVE, sizeof(engine->excludedMoves));
 
     // Set engine state and search limits
     engine->searchState = SEARCHING;
