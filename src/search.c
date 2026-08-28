@@ -196,14 +196,15 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
     Move bestMove = NO_MOVE;
     MovePicker picker;
 
-    // Don't use hash move because it's usually not helpful in qsearch (i think)
-    initMovePicker(&picker, NO_MOVE, ply);
+    /**
+     * Static Exchange Evaluation pruning. (+26.22 elo +/- 15.39)
+     * Filter losing captures before ordering them. This avoids sorting moves
+     * which SEE pruning would throw away immediately.
+     */
+    initQuiescenceMovePicker(&picker, ply);
 
     Move move;
     while ((move = pickMove(&picker, board)) != NO_MOVE) {
-        // Skip non noisy moves.
-        if (!IsCapture(move)) break;
-
         /**
          * Delta Pruning. (+29.87 elo +/- 15.87)
          * Delta pruning is a type of futility pruning in the quiescence search.
@@ -220,13 +221,6 @@ static int quiesce(Engine *engine, int alpha, int beta, int ply) {
             continue;
         }
 
-        /**
-         * Static Exchange Evaluation pruning. (+26.22 elo +/- 15.39)
-         * Skip qsearch captures which SEE estimates will lose material.
-         */
-        if (!see(board, move, 0))
-            continue;
-        
         // Skip illegal moves.
         if (makeMove(board, move) == 0) {
             undoMove(board, move);
@@ -492,7 +486,11 @@ static int search(Engine *engine, PV *pv, int alpha, int beta, int depth, int pl
             && IsQuiet(move)
             && !inCheck
             && quietsPlayed >= LMP_TABLE[depth]
-        ) break; // No captures exist after the first quiet in my ordering.
+        ) {
+            // Losing captures may still exist after the quiet moves.
+            skipQuietMoves(&picker);
+            continue;
+        }
 
         /**
          * Static Exchange Evaluation pruning. (+34.78 elo +/- 17.43)
