@@ -16,7 +16,6 @@
 
 ### Evaluation
 - Mopup?
-- Pawn structure (might skip for NNUE)
 
 ### Misc
 - Get an openbench workflow working with maybe gcloud

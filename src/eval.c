@@ -79,18 +79,18 @@ int evaluatePawns(Board *board, int color) {
                 score += PASSED_PAWN_VALUES[relativeRank - 1];
         }
 
-        // A pawn is isolated if no friendly pawns exist next to it
+        // Isolated: no friendly pawns exist adjacent to us
         int file = fileOf(square);
         if (!(ownPawns & ADJACENT_FILE_MASKS[file]))
             score += ISOLATED_PAWN_VALUE;
 
-        // A pawn is doubled if friendly pawns exist ahead on its file
+        // Doubled: friendly pawns exist ahead of us
         if (ownPawns & FORWARD_FILE_MASKS[color][square])
             score += DOUBLED_PAWN_VALUE;
 
     }
 
-    // One score per adjacent pair.
+    // Phalanx: a friendly pawn exists on the same rank and adjacent file.
     U64 phalanx = ownPawns & ((ownPawns & ~0x0101010101010101ULL) >> 1);
     while (phalanx) {
         int square = poplsb(&phalanx);
@@ -98,7 +98,7 @@ int evaluatePawns(Board *board, int color) {
         score += PHALANX_PAWN_VALUES[relativeRank];
     }
 
-    // Pawns covered by a friendly pawn.
+    // Defended: a friendly pawn attacks us from the rank behind.
     U64 defended = ownPawns & pawnAttackMap;
     while (defended) {
         int square = poplsb(&defended);
