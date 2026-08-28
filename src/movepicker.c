@@ -7,6 +7,7 @@
 #include "board.h"
 #include "eval.h"
 #include "search.h"
+#include "see.h"
 
 /* -------------------------------------------------------------------------- */
 /*                                 Move Scorer                                */
@@ -48,7 +49,15 @@ int scoreMove(MovePicker *picker, Move move, Board *board) {
         assert(victim >= PAWN && victim <= KING);
         assert(attacker >= PAWN && attacker <= KING);
 
-        return MVV_LVA[victim][attacker] + CAPTURE_BONUS;
+        /**
+         * Search safe captures before quiet moves and losing captures after
+         * them. MVV-LVA still decides the order inside each group.
+         */
+        int bonus = see(board, move, 0)
+            ? GOOD_CAPTURE_BONUS
+            : BAD_CAPTURE_BONUS;
+
+        return MVV_LVA[victim][attacker] + bonus;
     }
 
     // Killer moves
@@ -137,12 +146,19 @@ static void swapMoves(MovePicker *picker, int index1, int index2) {
 
 // Finds the index of the highest scored move not already picked
 static int bestMoveIndex(MovePicker *picker) {
-    int bestIndex = picker->currentIndex;
-    for (int i = picker->currentIndex + 1; i < picker->moveList.count; i++) {
-        if (picker->moveScores[i] > picker->moveScores[bestIndex]) {
+    int bestIndex = -1;
+
+    for (int i = picker->currentIndex; i < picker->moveList.count; i++) {
+        Move move = picker->moveList.list[i];
+        if (picker->skipQuiets && IsQuiet(move))
+            continue;
+
+        if (bestIndex == -1 ||
+            picker->moveScores[i] > picker->moveScores[bestIndex]) {
             bestIndex = i;
         }
     }
+
     return bestIndex;
 }
 
@@ -150,10 +166,11 @@ static int bestMoveIndex(MovePicker *picker) {
 /**
  * Move ordering:
  *   - Hash Move
- *   - Captures (Ordered via MVV-LVA)
+ *   - Good captures (Ordered via MVV-LVA)
  *   - Killer One
  *   - Killer Two
  *   - Quiet moves (Ordered via history)
+ *   - Bad captures (Ordered via MVV-LVA)
  */
 
 // Initialize the move picker
@@ -166,6 +183,8 @@ void initMovePicker(MovePicker *picker, Move hashMove, int ply) {
     picker->moveList.count = 0;
     picker->currentIndex = 0;
     picker->hashMove = hashMove;
+    picker->skipQuiets = false;
+    picker->goodCapturesOnly = false;
 
     // Retrieve killers from table
     picker->killerOne = killers[0][ply];
@@ -175,6 +194,17 @@ void initMovePicker(MovePicker *picker, Move hashMove, int ply) {
     for (int i = 0; i < MAX_LEGAL_MOVES; i++) {
         picker->moveScores[i] = 0;
     }
+}
+
+// Qsearch only needs captures which SEE says do not lose material.
+void initQuiescenceMovePicker(MovePicker *picker, int ply) {
+    initMovePicker(picker, NO_MOVE, ply);
+    picker->goodCapturesOnly = true;
+}
+
+// Stops returning quiet moves without throwing away captures behind them.
+void skipQuietMoves(MovePicker *picker) {
+    picker->skipQuiets = true;
 }
 
 // Picks the next best move
@@ -190,13 +220,25 @@ Move pickMove(MovePicker *picker, Board *board) {
         case STAGE_GENERATE:
             // Generate moves after hash move
             generatePseudoLegalMoves(&picker->moveList, board);
-            
-            // Score all moves
+
+            // Score the moves and remove anything qsearch will not search.
+            int keptMoves = 0;
             for (int i = 0; i < picker->moveList.count; i++) {
                 Move move = picker->moveList.list[i];
-                picker->moveScores[i] = scoreMove(picker, move, board);
+                if (picker->goodCapturesOnly && !IsCapture(move))
+                    continue;
+
+                int score = scoreMove(picker, move, board);
+
+                if (picker->goodCapturesOnly && score < GOOD_CAPTURE_BONUS)
+                    continue;
+
+                picker->moveList.list[keptMoves] = move;
+                picker->moveScores[keptMoves] = score;
+                keptMoves++;
             }
-            
+            picker->moveList.count = keptMoves;
+
             picker->stage = STAGE_MAIN;
 
             // fall through
@@ -205,6 +247,9 @@ Move pickMove(MovePicker *picker, Board *board) {
             while (picker->currentIndex < picker->moveList.count) {
                 // Find the next best move in the list
                 int bestIndex = bestMoveIndex(picker);
+                if (bestIndex == -1)
+                    break;
+
                 Move bestMove = picker->moveList.list[bestIndex];
 
                 // Swap the out of the unsorted portion
